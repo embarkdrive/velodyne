@@ -18,6 +18,7 @@
   <arg name="read_once" default="false" />
   <arg name="repeat_delay" default="0.0" />
   <arg name="rpm" default="600.0" />
+  <arg name="npackets" default="30" />
 
   <node pkg="nodelet" type="nodelet" name="driver_nodelet"
         args="load velodyne_driver/DriverNodelet velodyne_nodelet_manager" >
@@ -30,6 +31,7 @@
     <param name="read_once" value="$(arg read_once)"/>
     <param name="repeat_delay" value="$(arg repeat_delay)"/>
     <param name="rpm" value="$(arg rpm)"/>
+    <param name="npackets" value="$(arg npackets)"/>
   </node>    
 
 </launch>

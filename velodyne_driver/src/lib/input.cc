@@ -191,7 +191,7 @@ namespace velodyne_driver
               break; //done
           }
 
-        ROS_DEBUG_STREAM("incomplete Velodyne packet read: "
+        ROS_INFO_STREAM("incomplete Velodyne packet read: "
                          << nbytes << " bytes");
       }
 
