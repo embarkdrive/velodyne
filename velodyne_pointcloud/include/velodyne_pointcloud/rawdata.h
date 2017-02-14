@@ -133,7 +133,7 @@ namespace velodyne_rawdata
      */
     int setup(ros::NodeHandle private_nh);
 
-    void unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+    float unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
     
     void setParameters(double min_range, double max_range, double view_direction,
                        double view_width);
@@ -161,7 +161,7 @@ namespace velodyne_rawdata
     float cos_rot_table_[ROTATION_MAX_UNITS];
     
     /** add private function to handle the VLP16 **/ 
-    void unpack_vlp16(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+    float unpack_vlp16(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
 
     /** in-line test whether a point is in range */
     bool pointInRange(float range)

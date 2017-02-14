@@ -111,7 +111,7 @@ namespace velodyne_rawdata
    *  @param pkt raw packet to unpack
    *  @param pc shared pointer to point cloud (points are appended)
    */
-  void RawData::unpack(const velodyne_msgs::VelodynePacket &pkt,
+  float RawData::unpack(const velodyne_msgs::VelodynePacket &pkt,
                        VPointCloud &pc)
   {
     ROS_DEBUG_STREAM("Received packet, time: " << pkt.stamp);
@@ -119,8 +119,7 @@ namespace velodyne_rawdata
     /** special parsing for the VLP16 **/
     if (calibration_.num_lasers == 16)
     {
-      unpack_vlp16(pkt, pc);
-      return;
+      return unpack_vlp16(pkt, pc);
     }
     
     const raw_packet_t *raw = (const raw_packet_t *) &pkt.data[0];
@@ -273,6 +272,7 @@ namespace velodyne_rawdata
         }
       }
     }
+    return -1.0;
   }
   
   /** @brief convert raw VLP16 packet to point cloud
@@ -280,7 +280,7 @@ namespace velodyne_rawdata
    *  @param pkt raw packet to unpack
    *  @param pc shared pointer to point cloud (points are appended)
    */
-  void RawData::unpack_vlp16(const velodyne_msgs::VelodynePacket &pkt,
+  float RawData::unpack_vlp16(const velodyne_msgs::VelodynePacket &pkt,
                              VPointCloud &pc)
   {
     float azimuth;
@@ -290,6 +290,7 @@ namespace velodyne_rawdata
     int azimuth_corrected;
     float x, y, z;
     float intensity;
+    float slice_angle = 0.0;
 
     const raw_packet_t *raw = (const raw_packet_t *) &pkt.data[0];
 
@@ -302,13 +303,18 @@ namespace velodyne_rawdata
         ROS_WARN_STREAM_THROTTLE(60, "skipping invalid VLP-16 packet: block "
                                  << block << " header value is "
                                  << raw->blocks[block].header);
-        return;                         // bad packet: skip the rest
+        return -1;                         // bad packet: skip the rest
       }
 
       // Calculate difference between current and next block's azimuth angle.
       azimuth = (float)(raw->blocks[block].rotation);
+
+      //Debug 
+      //std::cout << "Block: " << block << ", Azimuth: " << azimuth << std::endl;
+
       if (block < (BLOCKS_PER_PACKET-1)){
         azimuth_diff = (float)((36000 + raw->blocks[block+1].rotation - raw->blocks[block].rotation)%36000);
+        slice_angle += azimuth_diff;
         last_azimuth_diff = azimuth_diff;
       }else{
         azimuth_diff = last_azimuth_diff;
@@ -452,6 +458,7 @@ namespace velodyne_rawdata
         }
       }
     }
+    return slice_angle;
   }  
 
 } // namespace velodyne_rawdata
