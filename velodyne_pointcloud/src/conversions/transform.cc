@@ -43,7 +43,7 @@ namespace velodyne_pointcloud
     srv_->setCallback (f);
     
     // subscribe to VelodyneScan packets using transform filter
-    velodyne_scan_.subscribe(node, "/vsl/velodyne_packets", 10);
+    velodyne_scan_.subscribe(node, "velodyne_packets", 10);
     tf_filter_ =
       new tf::MessageFilter<velodyne_msgs::VelodyneScan>(velodyne_scan_,
                                                          listener_,
