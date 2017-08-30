@@ -65,9 +65,9 @@ namespace velodyne_rawdata
   /** Special Defines for VLP32 support **/
   static const int    VLP32_FIRINGS_PER_BLOCK =   1;
   static const int    VLP32_SCANS_PER_FIRING  =  32;
-  static const float  VLP32_BLOCK_TDURATION   = VLP16_BLOCK_TDURATION;
-  static const float  VLP32_DSR_TOFFSET       =     VLP16_DSR_TOFFSET;
-  static const float  VLP32_FIRING_TOFFSET    =  VLP16_FIRING_TOFFSET;
+  static const float  VLP32_BLOCK_TDURATION   = 55.296f;
+  static const float  VLP32_DSR_TOFFSET       =  2.304f;
+  static const float  VLP32_FIRING_TOFFSET    = 55.296f;
 
   /** \brief Raw Velodyne data block.
    *
