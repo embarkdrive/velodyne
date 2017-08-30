@@ -295,17 +295,19 @@ namespace velodyne_rawdata
     float x, y, z;
     float intensity;
     float slice_angle = 0.0;
-    int firings_per_block = VLP16_FIRINGS_PER_BLOCK;
-    int scans_per_firing = VLP16_SCANS_PER_FIRING;
-    float block_tduration = VLP16_BLOCK_TDURATION;
-    float dsr_toffset = VLP16_DSR_TOFFSET;
-    float firing_toffset = VLP16_FIRING_TOFFSET;
+    int firing_sequences_per_block = VLP16_FIRING_SEQUENCES_PER_BLOCK;
+    int lasers_per_firing_sequence = VLP16_LASERS_PER_FIRING_SEQUENCE;
+    int lasers_per_firing = VLP16_LASERS_PER_FIRING;
+    float firing_duration = VLP16_FIRING_DURATION;
+    float firing_sequence_duration = VLP16_FIRING_SEQUENCE_DURATION;
+    float block_duration = VLP16_BLOCK_DURATION;
     if (calibration_.num_lasers == 32) {
-      firings_per_block = VLP32_FIRINGS_PER_BLOCK;
-      scans_per_firing = VLP32_SCANS_PER_FIRING;
-      block_tduration = VLP32_BLOCK_TDURATION;
-      dsr_toffset = VLP32_DSR_TOFFSET;
-      firing_toffset = VLP32_FIRING_TOFFSET;
+      firing_sequences_per_block = VLP32_FIRING_SEQUENCES_PER_BLOCK;
+      lasers_per_firing_sequence = VLP32_LASERS_PER_FIRING_SEQUENCE;
+      lasers_per_firing = VLP32_LASERS_PER_FIRING;
+      firing_duration = VLP32_FIRING_DURATION;
+      firing_sequence_duration = VLP32_FIRING_SEQUENCE_DURATION;
+      block_duration = VLP32_BLOCK_DURATION;
     }
 
     const raw_packet_t *raw = (const raw_packet_t *) &pkt.data[0];
@@ -336,10 +338,10 @@ namespace velodyne_rawdata
         azimuth_diff = last_azimuth_diff;
       }
 
-      for (int firing=0, k=0; firing < firings_per_block; firing++){
-        for (int dsr=0; dsr < scans_per_firing; dsr++, k+=RAW_SCAN_SIZE){
+      for (int firing_seq=0, k=0; firing_seq < firing_sequences_per_block; firing_seq++){
+        for (int laser=0; laser < lasers_per_firing_sequence; laser++, k+=RAW_SCAN_SIZE){
           velodyne_pointcloud::LaserCorrection &corrections = 
-            calibration_.laser_corrections[dsr];
+            calibration_.laser_corrections[laser];
 
           /** Position Calculation */
           union two_bytes tmp;
@@ -347,7 +349,7 @@ namespace velodyne_rawdata
           tmp.bytes[1] = raw->blocks[block].data[k+1];
           
           /** correct for the laser rotation as a function of timing during the firings **/
-          azimuth_corrected_f = azimuth + (azimuth_diff * ((dsr*dsr_toffset) + (firing*firing_toffset)) / block_tduration);
+          azimuth_corrected_f = azimuth + (azimuth_diff * (((laser/lasers_per_firing) * firing_duration) + (firing_seq*firing_sequence_duration)) / block_duration);
           azimuth_corrected = ((int)round(azimuth_corrected_f)) % 36000;
           
           /*condition added to avoid calculating points which are not

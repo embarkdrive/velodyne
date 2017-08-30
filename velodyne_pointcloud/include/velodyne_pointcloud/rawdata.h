@@ -56,18 +56,20 @@ namespace velodyne_rawdata
   
   
   /** Special Defines for VLP16 support **/
-  static const int    VLP16_FIRINGS_PER_BLOCK =   2;
-  static const int    VLP16_SCANS_PER_FIRING  =  16;
-  static const float  VLP16_BLOCK_TDURATION   = 110.592f;   // [µs]
-  static const float  VLP16_DSR_TOFFSET       =   2.304f;   // [µs]
-  static const float  VLP16_FIRING_TOFFSET    =  55.296f;   // [µs]
+  static const int    VLP16_FIRING_SEQS_PER_BLOCK =   2;
+  static const int    VLP16_LASERS_PER_FIRING_SEQ =  16;
+  static const int    VLP16_LASERS_PER_FIRING     =   1;      // lasers are fired individually
+  static const float  VLP16_FIRING_DURATION       =   2.304f; // [µs]
+  static const float  VLP16_FIRING_SEQ_DURATION   =  55.296f; // [µs]
+  static const float  VLP16_BLOCK_DURATION        = 110.592f; // [us] = firing_seq_duration * firing_seqs_per_block
   
   /** Special Defines for VLP32 support **/
-  static const int    VLP32_FIRINGS_PER_BLOCK =   1;
-  static const int    VLP32_SCANS_PER_FIRING  =  32;
-  static const float  VLP32_BLOCK_TDURATION   = 55.296f;
-  static const float  VLP32_DSR_TOFFSET       =  2.304f;
-  static const float  VLP32_FIRING_TOFFSET    = 55.296f;
+  static const int    VLP32_FIRING_SEQS_PER_BLOCK =   1;
+  static const int    VLP32_LASERS_PER_FIRING_SEQ =  32;
+  static const int    VLP32_LASERS_PER_FIRING     =   2;      // lasers are fired in pairs
+  static const float  VLP32_FIRING_DURATION       =   2.304f; // [µs]
+  static const float  VLP32_FIRING_SEQ_DURATION   =  55.296f; // [µs]
+  static const float  VLP32_BLOCK_DURATION        =  55.296f; // [us] = firing_seq_duration * firing_seqs_per_block
 
   /** \brief Raw Velodyne data block.
    *
