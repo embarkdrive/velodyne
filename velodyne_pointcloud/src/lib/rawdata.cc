@@ -76,10 +76,6 @@ namespace velodyne_rawdata
   /** Set up for on-line operation. */
   int RawData::setup(ros::NodeHandle private_nh)
   {
-    if (!private_nh.getParam("device_model", config_.deviceModel)) {
-      ROS_WARN_STREAM("device_model not specified");
-    }
-
     // get path to angles.config file for this device
     if (!private_nh.getParam("calibration", config_.calibrationFile))
       {
@@ -100,7 +96,21 @@ namespace velodyne_rawdata
     }
     
     ROS_INFO_STREAM("Number of lasers: " << calibration_.num_lasers << ".");
-    
+
+    if (!private_nh.getParam("device_model", config_.deviceModel)) {
+      ROS_WARN_STREAM("device_model not specified");
+    }
+
+    if (calibration_.num_lasers == 16) {
+      vlp_spec_ = VLP_16_SPEC;
+      is_vlp_ = true;
+    } else if (config_.deviceModel == "VLP32") {
+      vlp_spec_ = VLP_32_SPEC;
+      is_vlp_ = true;
+    } else {
+      is_vlp_ = false;
+    }
+
     // Set up cached values for sin and cos of all the possible headings
     for (uint16_t rot_index = 0; rot_index < ROTATION_MAX_UNITS; ++rot_index) {
       float rotation = angles::from_degrees(ROTATION_RESOLUTION * rot_index);
@@ -121,7 +131,7 @@ namespace velodyne_rawdata
     ROS_DEBUG_STREAM("Received packet, time: " << pkt.stamp);
     
     /** special parsing for the VLP16 and VLP32 **/
-    if (calibration_.num_lasers == 16 || config_.deviceModel == "VLP32")
+    if (is_vlp_)
     {
       return unpack_vlp(pkt, pc);
     }
@@ -295,20 +305,6 @@ namespace velodyne_rawdata
     float x, y, z;
     float intensity;
     float slice_angle = 0.0;
-    int firing_sequences_per_block = VLP16_FIRING_SEQUENCES_PER_BLOCK;
-    int lasers_per_firing_sequence = VLP16_LASERS_PER_FIRING_SEQUENCE;
-    int lasers_per_firing = VLP16_LASERS_PER_FIRING;
-    float firing_duration = VLP16_FIRING_DURATION;
-    float firing_sequence_duration = VLP16_FIRING_SEQUENCE_DURATION;
-    float block_duration = VLP16_BLOCK_DURATION;
-    if (calibration_.num_lasers == 32) {
-      firing_sequences_per_block = VLP32_FIRING_SEQUENCES_PER_BLOCK;
-      lasers_per_firing_sequence = VLP32_LASERS_PER_FIRING_SEQUENCE;
-      lasers_per_firing = VLP32_LASERS_PER_FIRING;
-      firing_duration = VLP32_FIRING_DURATION;
-      firing_sequence_duration = VLP32_FIRING_SEQUENCE_DURATION;
-      block_duration = VLP32_BLOCK_DURATION;
-    }
 
     const raw_packet_t *raw = (const raw_packet_t *) &pkt.data[0];
 
@@ -338,8 +334,8 @@ namespace velodyne_rawdata
         azimuth_diff = last_azimuth_diff;
       }
 
-      for (int firing_seq=0, k=0; firing_seq < firing_sequences_per_block; firing_seq++){
-        for (int laser=0; laser < lasers_per_firing_sequence; laser++, k+=RAW_SCAN_SIZE){
+      for (int firing_seq=0, k=0; firing_seq < vlp_spec_.firing_seqs_per_block; firing_seq++){
+        for (int laser=0; laser < vlp_spec_.lasers_per_firing_seq; laser++, k+=RAW_SCAN_SIZE){
           velodyne_pointcloud::LaserCorrection &corrections = 
             calibration_.laser_corrections[laser];
 
@@ -349,7 +345,9 @@ namespace velodyne_rawdata
           tmp.bytes[1] = raw->blocks[block].data[k+1];
           
           /** correct for the laser rotation as a function of timing during the firings **/
-          azimuth_corrected_f = azimuth + (azimuth_diff * (((laser/lasers_per_firing) * firing_duration) + (firing_seq*firing_sequence_duration)) / block_duration);
+          float firing_offset = (laser / vlp_spec_.lasers_per_firing) * vlp_spec_.firing_duration;
+          float firing_seq_offset = firing_seq * vlp_spec_.firing_seq_duration;
+          azimuth_corrected_f = azimuth + (azimuth_diff * (firing_offset + firing_seq_offset) / vlp_spec_.block_duration);
           azimuth_corrected = ((int)round(azimuth_corrected_f)) % 36000;
           
           /*condition added to avoid calculating points which are not
