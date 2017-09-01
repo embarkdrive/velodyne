@@ -360,7 +360,7 @@ namespace velodyne_rawdata
                || azimuth_corrected >= config_.min_angle))){
 
             // convert polar coordinates to Euclidean XYZ
-            float distance = tmp.uint * DISTANCE_RESOLUTION;
+            float distance = tmp.uint * vlp_spec_.distance_resolution;
             distance += corrections.dist_correction;
             
             float cos_vert_angle = corrections.cos_vert_correction;

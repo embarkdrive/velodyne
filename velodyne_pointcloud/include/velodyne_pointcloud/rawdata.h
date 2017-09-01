@@ -63,14 +63,15 @@ namespace velodyne_rawdata
     float firing_duration;     // [us]
     float firing_seq_duration; // [us]
     float block_duration;      // [us] = firing_seq_duration * firing_seqs_per_block
+    float distance_resolution; // [us]
   } vlp_spec_t;
 
   static const vlp_spec_t VLP_16_SPEC = {
-    2, 16, 1, 2.304f, 55.296f, 110.592f
+    2, 16, 1, 2.304f, 55.296f, 110.592f, 0.002f
   };
 
   static const vlp_spec_t VLP_32_SPEC = {
-    1, 32, 2, 2.304f, 55.296f, 55.296f
+    1, 32, 2, 2.304f, 55.296f, 55.296f, 0.004f
   };
 
   /** \brief Raw Velodyne data block.
