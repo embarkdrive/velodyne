@@ -30,14 +30,14 @@ typedef pcl::PointCloud<VPoint> VPointCloud;
 
 class RingColors {
  public:
-    RingColors(ros::NodeHandle node, ros::NodeHandle private_nh);
-    ~RingColors() {}
+  RingColors(ros::NodeHandle node, ros::NodeHandle private_nh);
+  ~RingColors() {}
 
  private:
-    void convertPoints(const VPointCloud::ConstPtr &inMsg);
+  void convertPoints(const VPointCloud::ConstPtr &inMsg);
 
-    ros::Subscriber input_;
-    ros::Publisher output_;
+  ros::Subscriber input_;
+  ros::Publisher output_;
 };
 
 }  // namespace velodyne_pointcloud

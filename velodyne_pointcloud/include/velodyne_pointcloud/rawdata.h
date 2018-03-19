@@ -55,13 +55,13 @@ static const uint16_t LOWER_BANK = 0xddff;
 
 /** Special defines for VLP support **/
 typedef struct vlp_spec {
-    int firing_seqs_per_block;
-    int lasers_per_firing_seq;
-    int lasers_per_firing;
-    float firing_duration;      // [us]
-    float firing_seq_duration;  // [us]
-    float block_duration;  // [us] = firing_seq_duration * firing_seqs_per_block
-    float distance_resolution;  // [us]
+  int firing_seqs_per_block;
+  int lasers_per_firing_seq;
+  int lasers_per_firing;
+  float firing_duration;      // [us]
+  float firing_seq_duration;  // [us]
+  float block_duration;  // [us] = firing_seq_duration * firing_seqs_per_block
+  float distance_resolution;  // [us]
 } vlp_spec_t;
 
 static const vlp_spec_t VLP_16_SPEC = {2,       16,       1,     2.304f,
@@ -78,9 +78,9 @@ static const vlp_spec_t VLP_32_SPEC = {1,       32,      2,     2.304f,
  *  use stdint.h types, so things work with both 64 and 32-bit machines
  */
 typedef struct raw_block {
-    uint16_t header;    ///< UPPER_BANK or LOWER_BANK
-    uint16_t rotation;  ///< 0-35999, divide by 100 to get degrees
-    uint8_t data[BLOCK_DATA_SIZE];
+  uint16_t header;    ///< UPPER_BANK or LOWER_BANK
+  uint16_t rotation;  ///< 0-35999, divide by 100 to get degrees
+  uint8_t data[BLOCK_DATA_SIZE];
 } raw_block_t;
 
 /** used for unpacking the first two data bytes in a block
@@ -89,8 +89,8 @@ typedef struct raw_block {
  *  this works on big endian machines.
  */
 union two_bytes {
-    uint16_t uint;
-    uint8_t bytes[2];
+  uint16_t uint;
+  uint8_t bytes[2];
 };
 
 static const int PACKET_SIZE = 1206;
@@ -111,66 +111,66 @@ static const int SCANS_PER_PACKET = (SCANS_PER_BLOCK * BLOCKS_PER_PACKET);
  *  status has either a temperature encoding or the microcode level
  */
 typedef struct raw_packet {
-    raw_block_t blocks[BLOCKS_PER_PACKET];
-    uint16_t revolution;
-    uint8_t status[PACKET_STATUS_SIZE];
+  raw_block_t blocks[BLOCKS_PER_PACKET];
+  uint16_t revolution;
+  uint8_t status[PACKET_STATUS_SIZE];
 } raw_packet_t;
 
 /** \brief Velodyne data conversion class */
 class RawData {
  public:
-    RawData();
-    ~RawData() {}
+  RawData();
+  ~RawData() {}
 
-    /** \brief Set up for data processing.
-     *
-     *  Perform initializations needed before data processing can
-     *  begin:
-     *
-     *    - read device-specific angles calibration
-     *
-     *  @param private_nh private node handle for ROS parameters
-     *  @returns 0 if successful;
-     *           errno value for failure
-     */
-    int setup(ros::NodeHandle private_nh);
+  /** \brief Set up for data processing.
+   *
+   *  Perform initializations needed before data processing can
+   *  begin:
+   *
+   *    - read device-specific angles calibration
+   *
+   *  @param private_nh private node handle for ROS parameters
+   *  @returns 0 if successful;
+   *           errno value for failure
+   */
+  int setup(ros::NodeHandle private_nh);
 
-    float unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+  float unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
 
-    void setParameters(double min_range, double max_range,
-                       double view_direction, double view_width);
+  void setParameters(double min_range, double max_range, double view_direction,
+                     double view_width);
 
  private:
-    /** configuration parameters */
-    typedef struct {
-        std::string calibrationFile;  ///< calibration file name
-        std::string deviceModel;      ///< device model name
-        double max_range;             ///< maximum range to publish
-        double min_range;             ///< minimum range to publish
-        int min_angle;                ///< minimum angle to publish
-        int max_angle;                ///< maximum angle to publish
+  /** configuration parameters */
+  typedef struct {
+    std::string calibrationFile;  ///< calibration file name
+    std::string deviceModel;      ///< device model name
+    double max_range;             ///< maximum range to publish
+    double min_range;             ///< minimum range to publish
+    int min_angle;                ///< minimum angle to publish
+    int max_angle;                ///< maximum angle to publish
 
-        double tmp_min_angle;
-        double tmp_max_angle;
-    } Config;
-    Config config_;
+    double tmp_min_angle;
+    double tmp_max_angle;
+  } Config;
+  Config config_;
 
-    /**
-     * Calibration file
-     */
-    velodyne_pointcloud::Calibration calibration_;
-    vlp_spec_t vlp_spec_;
-    bool is_vlp_;  // whether or not device model is VLP
-    float sin_rot_table_[ROTATION_MAX_UNITS];
-    float cos_rot_table_[ROTATION_MAX_UNITS];
+  /**
+   * Calibration file
+   */
+  velodyne_pointcloud::Calibration calibration_;
+  vlp_spec_t vlp_spec_;
+  bool is_vlp_;  // whether or not device model is VLP
+  float sin_rot_table_[ROTATION_MAX_UNITS];
+  float cos_rot_table_[ROTATION_MAX_UNITS];
 
-    /** add private function to handle the VLP16 and VLP32 **/
-    float unpack_vlp(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+  /** add private function to handle the VLP16 and VLP32 **/
+  float unpack_vlp(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
 
-    /** in-line test whether a point is in range */
-    bool pointInRange(float range) {
-        return (range >= config_.min_range && range <= config_.max_range);
-    }
+  /** in-line test whether a point is in range */
+  bool pointInRange(float range) {
+    return (range >= config_.min_range && range <= config_.max_range);
+  }
 };
 
 }  // namespace velodyne_rawdata

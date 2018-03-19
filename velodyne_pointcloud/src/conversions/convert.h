@@ -28,31 +28,31 @@
 namespace velodyne_pointcloud {
 class Convert {
  public:
-    Convert(ros::NodeHandle node, ros::NodeHandle private_nh);
-    ~Convert() {}
+  Convert(ros::NodeHandle node, ros::NodeHandle private_nh);
+  ~Convert() {}
 
  private:
-    void callback(velodyne_pointcloud::CloudNodeConfig &config, uint32_t level);
-    void processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg);
+  void callback(velodyne_pointcloud::CloudNodeConfig &config, uint32_t level);
+  void processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg);
 
-    // Pointer to dynamic reconfigure service srv_
-    boost::shared_ptr<
-        dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> >
-        srv_;
+  // Pointer to dynamic reconfigure service srv_
+  boost::shared_ptr<
+    dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> >
+    srv_;
 
-    boost::shared_ptr<velodyne_rawdata::RawData> data_;
-    ros::Subscriber velodyne_scan_;
-    ros::Publisher output_;
+  boost::shared_ptr<velodyne_rawdata::RawData> data_;
+  ros::Subscriber velodyne_scan_;
+  ros::Publisher output_;
 
-    // make the pointcloud container a member variable to append different
-    // slices
-    velodyne_rawdata::VPointCloud accumulated_cloud_;
-    float section_angle_;
-    /// configuration parameters
-    typedef struct {
-        int npackets;  ///< number of packets to combine
-    } Config;
-    Config config_;
+  // make the pointcloud container a member variable to append different
+  // slices
+  velodyne_rawdata::VPointCloud accumulated_cloud_;
+  float section_angle_;
+  /// configuration parameters
+  typedef struct {
+    int npackets;  ///< number of packets to combine
+  } Config;
+  Config config_;
 };
 
 }  // namespace velodyne_pointcloud
