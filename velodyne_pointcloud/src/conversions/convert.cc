@@ -42,6 +42,8 @@ namespace velodyne_pointcloud
       node.subscribe("velodyne_packets", 10,
                      &Convert::processScan, (Convert *) this,
                      ros::TransportHints().tcpNoDelay(true));
+
+    section_angle_ = 0.0;
   }
   
   void Convert::callback(velodyne_pointcloud::CloudNodeConfig &config,
@@ -59,23 +61,43 @@ namespace velodyne_pointcloud
       return;                                     // avoid much work
 
     // allocate a point cloud with same time and frame ID as raw data
-    velodyne_rawdata::VPointCloud::Ptr
-      outMsg(new velodyne_rawdata::VPointCloud());
+    velodyne_rawdata::VPointCloud::Ptr outMsg(new velodyne_rawdata::VPointCloud());
+
     // outMsg's header is a pcl::PCLHeader, convert it before stamp assignment
     outMsg->header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
     outMsg->header.frame_id = scanMsg->header.frame_id;
     outMsg->height = 1;
-
+    
+    //Debug 
+    //std::cout << "Processing scan!\n"; 
+    
     // process each packet provided by the driver
     for (size_t i = 0; i < scanMsg->packets.size(); ++i)
-      {
-        data_->unpack(scanMsg->packets[i], *outMsg);
-      }
+    {
+      section_angle_ += data_->unpack(scanMsg->packets[i], *outMsg);
+    }
 
+    //Accumulate the pt cloud
+    accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), outMsg->points.begin(), outMsg->points.end());
+    accumulated_cloud_.width = accumulated_cloud_.points.size();
+    //std::cout << "accumulated angle: " << section_angle_ << std::endl;
+    
     // publish the accumulated cloud message
     ROS_DEBUG_STREAM("Publishing " << outMsg->height * outMsg->width
                      << " Velodyne points, time: " << outMsg->header.stamp);
-    output_.publish(outMsg);
+
+    if(section_angle_/100.0 >= 360.0)
+    {
+      accumulated_cloud_.header.stamp = outMsg->header.stamp;
+      accumulated_cloud_.header.frame_id = outMsg->header.frame_id;
+      accumulated_cloud_.height = outMsg->height;
+      output_.publish(accumulated_cloud_);
+      section_angle_ = 0.0;
+      accumulated_cloud_.points.clear();
+      accumulated_cloud_.width = 0;
+    }             
+      
+    
   }
 
 } // namespace velodyne_pointcloud

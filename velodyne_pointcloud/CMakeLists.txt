@@ -2,18 +2,19 @@ cmake_minimum_required(VERSION 2.8.3)
 project(velodyne_pointcloud)
 
 set(${PROJECT_NAME}_CATKIN_DEPS
-    angles
-    nodelet
-    pcl_ros
-    roscpp
-    roslib
-    sensor_msgs
-    tf
-    velodyne_driver
-    velodyne_msgs
-    dynamic_reconfigure
+  angles
+  dynamic_reconfigure
+  nodelet
+  pcl_ros
+  roscpp
+  roslib
+  sensor_msgs
+  tf
+  velodyne_driver
+  velodyne_msgs
 )
 
+find_package(roscpplint)
 find_package(catkin REQUIRED COMPONENTS
              ${${PROJECT_NAME}_CATKIN_DEPS} pcl_conversions)
 find_package(Boost COMPONENTS signals)
@@ -39,7 +40,7 @@ if(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 add_definitions(-DHAVE_NEW_YAMLCPP)
 endif(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 
-include_directories(include ${catkin_INCLUDE_DIRS} 
+include_directories(include ${catkin_INCLUDE_DIRS}
   ${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake
 )
 
@@ -48,11 +49,9 @@ catkin_package(
     DEPENDS yaml-cpp python-yaml
     INCLUDE_DIRS include
     LIBRARIES velodyne_rawdata)
-    
-#add_executable(dynamic_reconfigure_node src/dynamic_reconfigure_node.cpp)
-#target_link_libraries(dynamic_reconfigure_node
-#   ${catkin_LIBRARIES}
-# )
+
+roscpplint_cpp()
+
 
 add_subdirectory(src/lib)
 add_subdirectory(src/conversions)
@@ -67,7 +66,6 @@ install(DIRECTORY params/
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/params)
 install(PROGRAMS scripts/gen_calibration.py
         DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
-  
 
 if (CATKIN_ENABLE_TESTING)
   add_subdirectory(tests)

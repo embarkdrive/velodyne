@@ -25,6 +25,7 @@
   <build_depend>nodelet</build_depend>
   <build_depend>pluginlib</build_depend>
   <build_depend>roscpp</build_depend>
+  <build_depend>roscpplint</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>velodyne_msgs</build_depend>
 

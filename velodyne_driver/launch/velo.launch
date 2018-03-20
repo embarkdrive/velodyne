@@ -7,5 +7,6 @@
 
 	<include file="$(find velodyne_pointcloud)/launch/cloud_nodelet.launch">
 		<arg name="calibration" value="$(find velodyne_pointcloud)/params/VLP16db.yaml"/>
+		<arg name="device_model" value="VLP16"/>
 	</include>
 </launch>
