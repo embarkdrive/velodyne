@@ -9,7 +9,8 @@
   <arg name="max_range" default="200.0" />
   <arg name="min_range" default="0.9" />
   <node pkg="nodelet" type="nodelet" name="$(arg manager)_transform"
-        args="load velodyne_pointcloud/TransformNodelet $(arg manager)" >
+        args="load velodyne_pointcloud/TransformNodelet $(arg manager)" 
+        launch-prefix="log_stdout" >
     <param name="calibration" value="$(arg calibration)"/>
     <param name="device_model" value="$(arg device_model)" />
     <param name="frame_id" value="$(arg frame_id)"/>
