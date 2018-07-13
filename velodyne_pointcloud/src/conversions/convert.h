@@ -48,6 +48,9 @@ namespace velodyne_pointcloud
     ros::Subscriber velodyne_scan_;
     ros::Publisher output_;
 
+    //make the pointcloud container a member variable to append different slices
+    velodyne_rawdata::VPointCloud accumulated_cloud_;
+    float section_angle_;
     /// configuration parameters
     typedef struct {
       int npackets;                    ///< number of packets to combine

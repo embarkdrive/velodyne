@@ -96,7 +96,21 @@ namespace velodyne_rawdata
     }
     
     ROS_INFO_STREAM("Number of lasers: " << calibration_.num_lasers << ".");
-    
+
+    if (!private_nh.getParam("device_model", config_.deviceModel)) {
+      ROS_WARN_STREAM("device_model not specified");
+    }
+
+    if (calibration_.num_lasers == 16) {
+      vlp_spec_ = VLP_16_SPEC;
+      is_vlp_ = true;
+    } else if (config_.deviceModel == "VLP32") {
+      vlp_spec_ = VLP_32_SPEC;
+      is_vlp_ = true;
+    } else {
+      is_vlp_ = false;
+    }
+
     // Set up cached values for sin and cos of all the possible headings
     for (uint16_t rot_index = 0; rot_index < ROTATION_MAX_UNITS; ++rot_index) {
       float rotation = angles::from_degrees(ROTATION_RESOLUTION * rot_index);
@@ -111,16 +125,15 @@ namespace velodyne_rawdata
    *  @param pkt raw packet to unpack
    *  @param pc shared pointer to point cloud (points are appended)
    */
-  void RawData::unpack(const velodyne_msgs::VelodynePacket &pkt,
+  float RawData::unpack(const velodyne_msgs::VelodynePacket &pkt,
                        VPointCloud &pc)
   {
     ROS_DEBUG_STREAM("Received packet, time: " << pkt.stamp);
     
-    /** special parsing for the VLP16 **/
-    if (calibration_.num_lasers == 16)
+    /** special parsing for the VLP16 and VLP32 **/
+    if (is_vlp_)
     {
-      unpack_vlp16(pkt, pc);
-      return;
+      return unpack_vlp(pkt, pc);
     }
     
     const raw_packet_t *raw = (const raw_packet_t *) &pkt.data[0];
@@ -273,14 +286,15 @@ namespace velodyne_rawdata
         }
       }
     }
+    return -1.0;
   }
   
-  /** @brief convert raw VLP16 packet to point cloud
+  /** @brief convert raw VLP16 and VLP32 packet to point cloud
    *
    *  @param pkt raw packet to unpack
    *  @param pc shared pointer to point cloud (points are appended)
    */
-  void RawData::unpack_vlp16(const velodyne_msgs::VelodynePacket &pkt,
+  float RawData::unpack_vlp(const velodyne_msgs::VelodynePacket &pkt,
                              VPointCloud &pc)
   {
     float azimuth;
@@ -290,6 +304,7 @@ namespace velodyne_rawdata
     int azimuth_corrected;
     float x, y, z;
     float intensity;
+    float slice_angle = 0.0;
 
     const raw_packet_t *raw = (const raw_packet_t *) &pkt.data[0];
 
@@ -299,25 +314,30 @@ namespace velodyne_rawdata
       if (UPPER_BANK != raw->blocks[block].header) {
         // Do not flood the log with messages, only issue at most one
         // of these warnings per minute.
-        ROS_WARN_STREAM_THROTTLE(60, "skipping invalid VLP-16 packet: block "
+        ROS_WARN_STREAM_THROTTLE(60, "skipping invalid VLP packet: block "
                                  << block << " header value is "
                                  << raw->blocks[block].header);
-        return;                         // bad packet: skip the rest
+        return -1;                         // bad packet: skip the rest
       }
 
       // Calculate difference between current and next block's azimuth angle.
       azimuth = (float)(raw->blocks[block].rotation);
+
+      //Debug 
+      //std::cout << "Block: " << block << ", Azimuth: " << azimuth << std::endl;
+
       if (block < (BLOCKS_PER_PACKET-1)){
         azimuth_diff = (float)((36000 + raw->blocks[block+1].rotation - raw->blocks[block].rotation)%36000);
+        slice_angle += azimuth_diff;
         last_azimuth_diff = azimuth_diff;
       }else{
         azimuth_diff = last_azimuth_diff;
       }
 
-      for (int firing=0, k=0; firing < VLP16_FIRINGS_PER_BLOCK; firing++){
-        for (int dsr=0; dsr < VLP16_SCANS_PER_FIRING; dsr++, k+=RAW_SCAN_SIZE){
+      for (int firing_seq=0, k=0; firing_seq < vlp_spec_.firing_seqs_per_block; firing_seq++){
+        for (int laser=0; laser < vlp_spec_.lasers_per_firing_seq; laser++, k+=RAW_SCAN_SIZE){
           velodyne_pointcloud::LaserCorrection &corrections = 
-            calibration_.laser_corrections[dsr];
+            calibration_.laser_corrections[laser];
 
           /** Position Calculation */
           union two_bytes tmp;
@@ -325,7 +345,9 @@ namespace velodyne_rawdata
           tmp.bytes[1] = raw->blocks[block].data[k+1];
           
           /** correct for the laser rotation as a function of timing during the firings **/
-          azimuth_corrected_f = azimuth + (azimuth_diff * ((dsr*VLP16_DSR_TOFFSET) + (firing*VLP16_FIRING_TOFFSET)) / VLP16_BLOCK_TDURATION);
+          float firing_offset = (laser / vlp_spec_.lasers_per_firing) * vlp_spec_.firing_duration;
+          float firing_seq_offset = firing_seq * vlp_spec_.firing_seq_duration;
+          azimuth_corrected_f = azimuth + (azimuth_diff * (firing_offset + firing_seq_offset) / vlp_spec_.block_duration);
           azimuth_corrected = ((int)round(azimuth_corrected_f)) % 36000;
           
           /*condition added to avoid calculating points which are not
@@ -338,7 +360,7 @@ namespace velodyne_rawdata
                || azimuth_corrected >= config_.min_angle))){
 
             // convert polar coordinates to Euclidean XYZ
-            float distance = tmp.uint * DISTANCE_RESOLUTION;
+            float distance = tmp.uint * vlp_spec_.distance_resolution;
             distance += corrections.dist_correction;
             
             float cos_vert_angle = corrections.cos_vert_correction;
@@ -452,6 +474,7 @@ namespace velodyne_rawdata
         }
       }
     }
+    return slice_angle;
   }  
 
 } // namespace velodyne_rawdata

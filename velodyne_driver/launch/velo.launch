@@ -1,5 +1,5 @@
 <launch>
-	<node pkg="tf" type="static_transform_publisher" name="velodyne_tf_publisher" args="0.47806 -0.0056 0.07568 0 0.08716 0 0.99619 imu_center velodyne 20" />
+	<node pkg="tf" type="static_transform_publisher" name="velodyne_tf_publisher" args="0.47806 -0.0056 0.07568 0 0.08716 0 0.99619 imu_center velodyne 20"  launch-prefix="log_stdout" />
   	
 	<include file="$(find velodyne_driver)/launch/nodelet_manager.launch">
 		<arg name="model" value="VLP16"/>
@@ -7,5 +7,6 @@
 
 	<include file="$(find velodyne_pointcloud)/launch/cloud_nodelet.launch">
 		<arg name="calibration" value="$(find velodyne_pointcloud)/params/VLP16db.yaml"/>
+		<arg name="device_model" value="VLP16"/>
 	</include>
 </launch>

@@ -58,6 +58,11 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
       packet_rate = 754;             // 754 Packets/Second for Last or Strongest mode 1508 for dual (VLP-16 User Manual)
       model_full_name = "VLP-16";
     }
+  else if (config_.model == "VLP32")
+    {
+      packet_rate = 1507;
+      model_full_name = "VLP-32";
+    }
   else
     {
       ROS_ERROR_STREAM("unknown Velodyne LIDAR model: " << config_.model);
@@ -137,6 +142,10 @@ bool VelodyneDriver::poll(void)
     {
       while (true)
         {
+	  // if ros shutsdown, stop polling()
+	  if (!ros::ok())
+	    return false;
+
           // keep reading until full packet received
           int rc = input_->getPacket(&scan->packets[i], config_.time_offset);
           if (rc == 0) break;       // got a full packet?

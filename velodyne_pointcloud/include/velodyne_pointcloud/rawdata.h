@@ -53,15 +53,26 @@ namespace velodyne_rawdata
   /** @todo make this work for both big and little-endian machines */
   static const uint16_t UPPER_BANK = 0xeeff;
   static const uint16_t LOWER_BANK = 0xddff;
-  
-  
-  /** Special Defines for VLP16 support **/
-  static const int    VLP16_FIRINGS_PER_BLOCK =   2;
-  static const int    VLP16_SCANS_PER_FIRING  =  16;
-  static const float  VLP16_BLOCK_TDURATION   = 110.592f;   // [µs]
-  static const float  VLP16_DSR_TOFFSET       =   2.304f;   // [µs]
-  static const float  VLP16_FIRING_TOFFSET    =  55.296f;   // [µs]
-  
+
+  /** Special defines for VLP support **/
+  typedef struct vlp_spec
+  {
+    int firing_seqs_per_block;
+    int lasers_per_firing_seq;
+    int lasers_per_firing;
+    float firing_duration;     // [us]
+    float firing_seq_duration; // [us]
+    float block_duration;      // [us] = firing_seq_duration * firing_seqs_per_block
+    float distance_resolution; // [us]
+  } vlp_spec_t;
+
+  static const vlp_spec_t VLP_16_SPEC = {
+    2, 16, 1, 2.304f, 55.296f, 110.592f, 0.002f
+  };
+
+  static const vlp_spec_t VLP_32_SPEC = {
+    1, 32, 2, 2.304f, 55.296f, 55.296f, 0.004f
+  };
 
   /** \brief Raw Velodyne data block.
    *
@@ -133,7 +144,7 @@ namespace velodyne_rawdata
      */
     int setup(ros::NodeHandle private_nh);
 
-    void unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+    float unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
     
     void setParameters(double min_range, double max_range, double view_direction,
                        double view_width);
@@ -143,6 +154,7 @@ namespace velodyne_rawdata
     /** configuration parameters */
     typedef struct {
       std::string calibrationFile;     ///< calibration file name
+      std::string deviceModel;         ///< device model name
       double max_range;                ///< maximum range to publish
       double min_range;                ///< minimum range to publish
       int min_angle;                   ///< minimum angle to publish
@@ -157,11 +169,13 @@ namespace velodyne_rawdata
      * Calibration file
      */
     velodyne_pointcloud::Calibration calibration_;
+    vlp_spec_t vlp_spec_;
+    bool is_vlp_; // whether or not device model is VLP
     float sin_rot_table_[ROTATION_MAX_UNITS];
     float cos_rot_table_[ROTATION_MAX_UNITS];
     
-    /** add private function to handle the VLP16 **/ 
-    void unpack_vlp16(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+    /** add private function to handle the VLP16 and VLP32 **/
+    float unpack_vlp(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
 
     /** in-line test whether a point is in range */
     bool pointInRange(float range)
