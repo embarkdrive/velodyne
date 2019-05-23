@@ -8,6 +8,7 @@ set(${PROJECT_NAME}_CATKIN_DEPS
     roscpp
     roslib
     sensor_msgs
+    nav_msgs
     tf
     velodyne_driver
     velodyne_msgs

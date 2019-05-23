@@ -14,7 +14,7 @@
 */
 
 #include "convert.h"
-
+#include <algorithm>
 #include <pcl_conversions/pcl_conversions.h>
 
 namespace velodyne_pointcloud
@@ -36,7 +36,12 @@ namespace velodyne_pointcloud
       CallbackType f;
     f = boost::bind (&Convert::callback, this, _1, _2);
     srv_->setCallback (f);
-
+    
+    // subscribe to /odom
+    odom_sub_ =
+      node.subscribe("/odom", 10,
+                     &Convert::processOdom, (Convert *) this);
+                     
     // subscribe to VelodyneScan packets
     velodyne_scan_ =
       node.subscribe("velodyne_packets", 10,
@@ -52,6 +57,57 @@ namespace velodyne_pointcloud
   ROS_INFO("Reconfigure Request");
   data_->setParameters(config.min_range, config.max_range, config.view_direction,
                        config.view_width);
+  }
+  
+  /** @brief Callback for odometry messages. */
+  void Convert::processOdom(const nav_msgs::Odometry::ConstPtr &odomMsg)
+  {
+    // Save last N odom messages sorted by time
+    if(odom_sorted_.empty()){
+        odom_sorted_.push_back(*odomMsg);
+    } else {
+        std::vector<nav_msgs::Odometry>::iterator low = std::lower_bound(odom_sorted_.begin(), odom_sorted_.end(), *odomMsg, timecomparison());
+        odom_sorted_.insert(low, *odomMsg);
+        if(odom_sorted_.size() > SIZE_OF_ODOM_LIST){
+            odom_sorted_.erase(odom_sorted_.begin());
+        }
+    }
+    //debugPrintOdom();
+  }
+  
+  void Convert::debugPrintOdom(){
+      std::vector<nav_msgs::Odometry>::iterator it;
+      for(it = odom_sorted_.begin(); it!= odom_sorted_.end(); ++it){
+          ROS_INFO_STREAM("Time: " << it->header.stamp <<
+           ", px: " << it->pose.pose.position.x << 
+           ", py: " << it->pose.pose.position.y << 
+           ", pz: " << it->pose.pose.position.z << 
+           ", qx: " << it->pose.pose.orientation.x << 
+           ", qy: " << it->pose.pose.orientation.y << 
+           ", qy: " << it->pose.pose.orientation.z <<
+           ", qw: " << it->pose.pose.orientation.w);
+      }
+  }
+  
+  std::vector<nav_msgs::Odometry>::iterator Convert::getClosestOdom(const ros::Time& packet_time){
+      nav_msgs::Odometry temp_odom;
+      temp_odom.header.stamp = packet_time;
+      if(odom_sorted_.empty()){
+          return odom_sorted_.end();
+      }
+      
+      std::vector<nav_msgs::Odometry>::iterator it = std::lower_bound(odom_sorted_.begin(), odom_sorted_.end(), temp_odom, timecomparison());
+      if(it != odom_sorted_.end()){
+          std::vector<nav_msgs::Odometry>::iterator larger_time_it = it;
+          std::vector<nav_msgs::Odometry>::iterator smaller_time_it = it-1;
+          if((larger_time_it->header.stamp - packet_time) <= (packet_time - smaller_time_it->header.stamp)){
+              return larger_time_it;
+          } else{
+              return smaller_time_it;
+          }
+      } else {
+         return it;
+      }
   }
 
   /** @brief Callback for raw scan messages. */
@@ -72,9 +128,14 @@ namespace velodyne_pointcloud
     //std::cout << "Processing scan!\n"; 
     
     // process each packet provided by the driver
+    int current_num_points = accumulated_cloud_.points.size();
     for (size_t i = 0; i < scanMsg->packets.size(); ++i)
     {
       section_angle_ += data_->unpack(scanMsg->packets[i], *outMsg);
+      int points_received = accumulated_cloud_.points.size() + outMsg->points.size()-current_num_points;
+      std::pair<ros::Time, int> timestamp_num_points(scanMsg->packets[i].stamp, points_received);
+      time_stamps_.push_back(timestamp_num_points);
+      current_num_points = accumulated_cloud_.points.size() + outMsg->points.size();
     }
 
     //Accumulate the pt cloud
@@ -91,13 +152,35 @@ namespace velodyne_pointcloud
       accumulated_cloud_.header.stamp = outMsg->header.stamp;
       accumulated_cloud_.header.frame_id = outMsg->header.frame_id;
       accumulated_cloud_.height = outMsg->height;
+      deskewPoints(scanMsg->header.stamp);
       output_.publish(accumulated_cloud_);
       section_angle_ = 0.0;
       accumulated_cloud_.points.clear();
       accumulated_cloud_.width = 0;
+      time_stamps_.clear();
     }             
-      
-    
+  }
+  
+  void Convert::deskewPoints(ros::Time pointcloud_timestamp)
+  {
+      for(std::vector< std::pair<ros::Time, int> >::iterator it = time_stamps_.begin(); it != time_stamps_.end(); ++it){
+          //ROS_INFO_STREAM(" packet_time = " << it->first << ", points in packet = " << it->second);
+      }
+      if(!odom_sorted_.empty()){
+          std::vector<nav_msgs::Odometry>::iterator it = getClosestOdom(pointcloud_timestamp);
+          if(it == odom_sorted_.end()){
+              --it;
+          }
+          ROS_INFO_STREAM("PtCloud timestamp = " << pointcloud_timestamp <<
+           " Odom_closest: " << it->header.stamp <<
+           ", px: " << it->pose.pose.position.x << 
+           ", py: " << it->pose.pose.position.y << 
+           ", pz: " << it->pose.pose.position.z << 
+           ", qx: " << it->pose.pose.orientation.x << 
+           ", qy: " << it->pose.pose.orientation.y << 
+           ", qy: " << it->pose.pose.orientation.z <<
+           ", qw: " << it->pose.pose.orientation.w);
+      }
   }
 
 } // namespace velodyne_pointcloud
