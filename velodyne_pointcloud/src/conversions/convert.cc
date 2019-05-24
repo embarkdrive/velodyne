@@ -22,7 +22,7 @@ namespace velodyne_pointcloud
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
     data_(new velodyne_rawdata::RawData()),
-    odom_spinner_(&node, "")
+    odom_spinner_(&node, "", 30)
   {
     data_->setup(private_nh);
 
@@ -40,7 +40,7 @@ namespace velodyne_pointcloud
     
     // subscribe to /odom
     odom_sub_ =
-        odom_spinner_.get_nh()->subscribe("/odom", 1, &Convert::processOdom, (Convert *) this);
+        odom_spinner_.get_nh()->subscribe("/odom", 5, &Convert::processOdom, (Convert *) this);
     odom_spinner_.start();
                      
     // subscribe to VelodyneScan packets
@@ -63,6 +63,7 @@ namespace velodyne_pointcloud
   /** @brief Callback for odometry messages. */
   void Convert::processOdom(const nav_msgs::Odometry::ConstPtr &odomMsg)
   {
+      ROS_INFO_STREAM(" Odom_rcvd: " << odomMsg->header.stamp << ", Now :" << ros::Time::now());
     // Save last N odom messages sorted by time
     if(odom_sorted_.empty()){
         odom_sorted_.push_back(*odomMsg);
@@ -166,7 +167,7 @@ namespace velodyne_pointcloud
   {
       for(std::vector< std::pair<ros::Time, int> >::iterator it = time_stamps_.begin(); it != time_stamps_.end(); ++it){
           //ROS_INFO_STREAM(" packet_time = " << it->first << ", points in packet = " << it->second);
-          if(!odom_sorted_.empty()){
+          /*if(!odom_sorted_.empty()){
               std::vector<nav_msgs::Odometry>::iterator nit = getClosestOdom(it->first);
               if(nit == odom_sorted_.end()){
                   --nit;
@@ -180,9 +181,9 @@ namespace velodyne_pointcloud
                ", qy: " << nit->pose.pose.orientation.y << 
                ", qy: " << nit->pose.pose.orientation.z <<
                ", qw: " << nit->pose.pose.orientation.w);
-          }
+          }*/
       }
-      if(!odom_sorted_.empty()){
+      /*if(!odom_sorted_.empty()){
           std::vector<nav_msgs::Odometry>::iterator it = getClosestOdom(pointcloud_timestamp);
           if(it == odom_sorted_.end()){
               --it;
@@ -196,7 +197,9 @@ namespace velodyne_pointcloud
            ", qy: " << it->pose.pose.orientation.y << 
            ", qy: " << it->pose.pose.orientation.z <<
            ", qw: " << it->pose.pose.orientation.w);
-      }
+      }*/
+      
+      //debugPrintOdom();
   }
 
 } // namespace velodyne_pointcloud
