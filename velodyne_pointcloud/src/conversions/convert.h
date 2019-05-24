@@ -25,6 +25,7 @@
 
 #include <dynamic_reconfigure/server.h>
 #include <velodyne_pointcloud/CloudNodeConfig.h>
+#include "utils/ros/thread_spinner.h"
 
 namespace velodyne_pointcloud
 {
@@ -77,6 +78,7 @@ public:
     std::vector<nav_msgs::Odometry> odom_sorted_;
     std::vector< std::pair<ros::Time, int> > time_stamps_;
     
+    ThreadSpinner odom_spinner_;
     /// configuration parameters
     typedef struct {
       int npackets;                    ///< number of packets to combine

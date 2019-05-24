@@ -13,6 +13,7 @@ set(${PROJECT_NAME}_CATKIN_DEPS
     velodyne_driver
     velodyne_msgs
     dynamic_reconfigure
+    utils
 )
 
 find_package(catkin REQUIRED COMPONENTS

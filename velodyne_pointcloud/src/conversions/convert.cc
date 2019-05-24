@@ -21,7 +21,8 @@ namespace velodyne_pointcloud
 {
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
-    data_(new velodyne_rawdata::RawData())
+    data_(new velodyne_rawdata::RawData()),
+    odom_spinner_(&node, "")
   {
     data_->setup(private_nh);
 
@@ -39,8 +40,8 @@ namespace velodyne_pointcloud
     
     // subscribe to /odom
     odom_sub_ =
-      node.subscribe("/odom", 10,
-                     &Convert::processOdom, (Convert *) this);
+        odom_spinner_.get_nh()->subscribe("/odom", 1, &Convert::processOdom, (Convert *) this);
+    odom_spinner_.start();
                      
     // subscribe to VelodyneScan packets
     velodyne_scan_ =
@@ -165,6 +166,21 @@ namespace velodyne_pointcloud
   {
       for(std::vector< std::pair<ros::Time, int> >::iterator it = time_stamps_.begin(); it != time_stamps_.end(); ++it){
           //ROS_INFO_STREAM(" packet_time = " << it->first << ", points in packet = " << it->second);
+          if(!odom_sorted_.empty()){
+              std::vector<nav_msgs::Odometry>::iterator nit = getClosestOdom(it->first);
+              if(nit == odom_sorted_.end()){
+                  --nit;
+              }
+              ROS_INFO_STREAM("Packet timestamp = " << pointcloud_timestamp <<
+               " Odom_closest: " << nit->header.stamp <<
+               ", px: " << nit->pose.pose.position.x << 
+               ", py: " << nit->pose.pose.position.y << 
+               ", pz: " << nit->pose.pose.position.z << 
+               ", qx: " << nit->pose.pose.orientation.x << 
+               ", qy: " << nit->pose.pose.orientation.y << 
+               ", qy: " << nit->pose.pose.orientation.z <<
+               ", qw: " << nit->pose.pose.orientation.w);
+          }
       }
       if(!odom_sorted_.empty()){
           std::vector<nav_msgs::Odometry>::iterator it = getClosestOdom(pointcloud_timestamp);
