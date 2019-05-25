@@ -79,6 +79,7 @@ public:
     std::vector< std::pair<ros::Time, int> > time_stamps_;
     
     ThreadSpinner odom_spinner_;
+    boost::mutex mutex_;
     /// configuration parameters
     typedef struct {
       int npackets;                    ///< number of packets to combine

@@ -22,7 +22,7 @@ namespace velodyne_pointcloud
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
     data_(new velodyne_rawdata::RawData()),
-    odom_spinner_(&node, "", 30)
+    odom_spinner_(&node, "", 1)
   {
     data_->setup(private_nh);
 
@@ -40,7 +40,7 @@ namespace velodyne_pointcloud
     
     // subscribe to /odom
     odom_sub_ =
-        odom_spinner_.get_nh()->subscribe("/odom", 5, &Convert::processOdom, (Convert *) this);
+        odom_spinner_.get_nh()->subscribe("/odom", 1, &Convert::processOdom, (Convert *) this);
     odom_spinner_.start();
                      
     // subscribe to VelodyneScan packets
@@ -64,6 +64,7 @@ namespace velodyne_pointcloud
   void Convert::processOdom(const nav_msgs::Odometry::ConstPtr &odomMsg)
   {
       ROS_INFO_STREAM(" Odom_rcvd: " << odomMsg->header.stamp << ", Now :" << ros::Time::now());
+      boost::lock_guard<boost::mutex> lock(mutex_);
     // Save last N odom messages sorted by time
     if(odom_sorted_.empty()){
         odom_sorted_.push_back(*odomMsg);
@@ -74,7 +75,7 @@ namespace velodyne_pointcloud
             odom_sorted_.erase(odom_sorted_.begin());
         }
     }
-    //debugPrintOdom();
+    debugPrintOdom();
   }
   
   void Convert::debugPrintOdom(){
