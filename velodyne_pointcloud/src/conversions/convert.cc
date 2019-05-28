@@ -22,7 +22,7 @@ namespace velodyne_pointcloud
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
     data_(new velodyne_rawdata::RawData()),
-    odom_spinner_(&node, "", 1)
+    odom_spinner_(&node, "")
   {
     data_->setup(private_nh);
 
@@ -40,7 +40,7 @@ namespace velodyne_pointcloud
     
     // subscribe to /odom
     odom_sub_ =
-        odom_spinner_.get_nh()->subscribe("/odom", 1, &Convert::processOdom, (Convert *) this);
+        odom_spinner_.get_nh()->subscribe("/odom", 5, &Convert::processOdom, (Convert *) this);
     odom_spinner_.start();
                      
     // subscribe to VelodyneScan packets
