@@ -47,6 +47,7 @@
   <run_depend>sensor_msgs</run_depend>
   <run_depend>nav_msgs</run_depend>
   <run_depend>tf</run_depend>
+  <run_depend>tf2_ros</run_depend>
   <run_depend>velodyne_driver</run_depend>
   <run_depend>velodyne_msgs</run_depend>
   <run_depend>yaml-cpp</run_depend>

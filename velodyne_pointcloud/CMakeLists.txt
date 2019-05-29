@@ -10,6 +10,7 @@ set(${PROJECT_NAME}_CATKIN_DEPS
     sensor_msgs
     nav_msgs
     tf
+    tf2_ros
     velodyne_driver
     velodyne_msgs
     dynamic_reconfigure

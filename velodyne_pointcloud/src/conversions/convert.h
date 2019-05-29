@@ -22,10 +22,17 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <nav_msgs/Odometry.h>
 #include <velodyne_pointcloud/rawdata.h>
+#include "tf/transform_datatypes.h"
 
 #include <dynamic_reconfigure/server.h>
 #include <velodyne_pointcloud/CloudNodeConfig.h>
 #include "utils/ros/thread_spinner.h"
+
+#include <boost/thread/lock_guard.hpp>
+#include <boost/thread/mutex.hpp>
+
+// include template implementations to transform a custom point cloud
+#include <pcl_ros/impl/transforms.hpp>
 
 namespace velodyne_pointcloud
 {
@@ -58,8 +65,7 @@ public:
                 uint32_t level);
     void processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg);
     void processOdom(const nav_msgs::Odometry::ConstPtr &odomMsg);
-    std::vector<nav_msgs::Odometry>::iterator getClosestOdom(const ros::Time& packet_time);
-    
+    std::vector<nav_msgs::Odometry>::iterator getClosestOdom(const ros::Time& packet_time, bool only_past);
     void deskewPoints(ros::Time pointcloud_timestamp);
     void debugPrintOdom();
     ///Pointer to dynamic reconfigure service srv_
@@ -70,13 +76,14 @@ public:
     ros::Subscriber velodyne_scan_;
     ros::Subscriber odom_sub_;
     ros::Publisher output_;
-
+    
+    std::vector<velodyne_rawdata::VPointCloud> scans_;
     //make the pointcloud container a member variable to append different slices
     velodyne_rawdata::VPointCloud accumulated_cloud_;
     float section_angle_;
     
     std::vector<nav_msgs::Odometry> odom_sorted_;
-    std::vector< std::pair<ros::Time, int> > time_stamps_;
+    std::vector<ros::Time> time_stamps_;
     
     ThreadSpinner odom_spinner_;
     boost::mutex mutex_;
