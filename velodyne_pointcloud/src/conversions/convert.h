@@ -85,6 +85,9 @@ public:
     std::vector<nav_msgs::Odometry> odom_sorted_;
     std::vector<ros::Time> time_stamps_;
     
+    tf::TransformListener tf_listener_;
+    tf::StampedTransform vehicle_to_velodyne_transform_;
+    bool tf_available_;
     ThreadSpinner odom_spinner_;
     boost::mutex mutex_;
     /// configuration parameters
