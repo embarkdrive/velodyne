@@ -180,7 +180,7 @@ namespace velodyne_pointcloud
       }
       if (deskew_){
           double time_diff = (pointcloud_timestamp - prev_odom_it->header.stamp).toSec();
-          ROS_DEBUG("Time diff = %f", time_diff);
+          ROS_INFO("Time diff = %f", time_diff);
           nav_msgs::Odometry odom_at_timestamp;
           odom_at_timestamp.header.stamp = pointcloud_timestamp;
           odom_at_timestamp.pose.pose.position.x = prev_odom_it->pose.pose.position.x + prev_odom_it->twist.twist.linear.x * time_diff;
@@ -200,7 +200,7 @@ namespace velodyne_pointcloud
           odom_at_timestamp.twist.twist.angular.y = prev_odom_it->twist.twist.angular.y;
           odom_at_timestamp.twist.twist.angular.z = prev_odom_it->twist.twist.angular.z;
           
-          ROS_DEBUG_STREAM("Packet timestamp = " << pointcloud_timestamp <<
+          ROS_DEBUG_STREAM("Pointcloud timestamp = " << pointcloud_timestamp <<
            " Odom_closest: " << prev_odom_it->header.stamp <<
            ", px: " << odom_at_timestamp.pose.pose.position.x << 
            ", py: " << odom_at_timestamp.pose.pose.position.y << 
@@ -216,7 +216,7 @@ namespace velodyne_pointcloud
            int index = std::distance(time_stamps_.begin(), it);
            if(deskew_){
                std::vector<nav_msgs::Odometry>::iterator nit = getClosestOdom(*it);
-                /*ROS_INFO_STREAM("Packet timestamp = " << pointcloud_timestamp <<
+                ROS_INFO_STREAM("Packet timestamp = " << *it <<
                  " Odom_closest: " << nit->header.stamp <<
                  ", px: " << nit->pose.pose.position.x << 
                  ", py: " << nit->pose.pose.position.y << 
@@ -224,19 +224,19 @@ namespace velodyne_pointcloud
                  ", qx: " << nit->pose.pose.orientation.x << 
                  ", qy: " << nit->pose.pose.orientation.y << 
                  ", qy: " << nit->pose.pose.orientation.z <<
-                 ", qw: " << nit->pose.pose.orientation.w);*/
+                 ", qw: " << nit->pose.pose.orientation.w);
                 tf::poseMsgToTF(nit->pose.pose, packet_tf);
                 diff_tf = pointcloud_tf.inverseTimes(packet_tf);
                 geometry_msgs::Pose diff_pose;
                 tf::poseTFToMsg(diff_tf, diff_pose);
-                /*ROS_INFO_STREAM(
+                ROS_INFO_STREAM(
                 "px: " << diff_pose.position.x << 
                 ", py: " << diff_pose.position.y << 
                 ", pz: " << diff_pose.position.z << 
                 ", qx: " << diff_pose.orientation.x << 
                 ", qy: " << diff_pose.orientation.y << 
                 ", qz: " << diff_pose.orientation.z <<
-                ", qw: " << diff_pose.orientation.w);*/
+                ", qw: " << diff_pose.orientation.w);
                 
                 pcl_ros::transformPointCloud(scans_[index], deskewed_cloud, diff_tf);
                 /*ROS_INFO_STREAM(
