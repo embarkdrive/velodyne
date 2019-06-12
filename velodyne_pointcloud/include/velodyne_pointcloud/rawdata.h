@@ -63,13 +63,18 @@ namespace velodyne_rawdata
     float firing_duration;     // [us]
     float firing_seq_duration; // [us]
     float block_duration;      // [us] = firing_seq_duration * firing_seqs_per_block
-    float distance_resolution; // [us]
+    float distance_resolution; // [m]
   } vlp_spec_t;
 
   static const vlp_spec_t VLP_16_SPEC = {
     2, 16, 1, 2.304f, 55.296f, 110.592f, 0.002f
   };
 
+  // TIMINGS: Page 49 VLP-32C user manual
+  // The re-charge time of 18.432 us is calculated as:
+  // block duration - laser_per_firing_seq/lasers_per_firing * firing_seq_duration =
+  // 55.296 - 32/2 * 2.304
+  // DISTANCE RESULTION: Page 54 VLP-32C user manual
   static const vlp_spec_t VLP_32_SPEC = {
     1, 32, 2, 2.304f, 55.296f, 55.296f, 0.004f
   };

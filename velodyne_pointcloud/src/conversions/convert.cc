@@ -14,244 +14,243 @@
 */
 
 #include "convert.h"
-#include <algorithm>
 #include <pcl_conversions/pcl_conversions.h>
+#include <algorithm>
 
-namespace velodyne_pointcloud
+namespace velodyne_pointcloud {
+/** @brief Constructor. */
+Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh)
+  : data_(new velodyne_rawdata::RawData()), odom_spinner_(&node, "")
 {
-  /** @brief Constructor. */
-  Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
-    data_(new velodyne_rawdata::RawData()),
-    odom_spinner_(&node, "")
-  {
-    data_->setup(private_nh);
+  data_->setup(private_nh);
 
 
-    // advertise output point cloud (before subscribing to input data)
-    output_ =
-      node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
-      
-    srv_ = boost::make_shared <dynamic_reconfigure::Server<velodyne_pointcloud::
-      CloudNodeConfig> > (private_nh);
-    dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig>::
-      CallbackType f;
-    f = boost::bind (&Convert::callback, this, _1, _2);
-    srv_->setCallback (f);
-    
-    // subscribe to /odom
-    odom_sub_ =
-        odom_spinner_.get_nh()->subscribe("/odom", 5, &Convert::processOdom, (Convert *) this);
-    odom_spinner_.start();
-                     
-    // subscribe to VelodyneScan packets
-    velodyne_scan_ =
-      node.subscribe("velodyne_packets", 10,
-                     &Convert::processScan, (Convert *) this,
-                     ros::TransportHints().tcpNoDelay(true));
+  // advertise output point cloud (before subscribing to input data)
+  output_ = node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
 
-    section_angle_ = 0.0;
-  }
-  
-  void Convert::callback(velodyne_pointcloud::CloudNodeConfig &config,
-                uint32_t level)
-  {
+  srv_ = boost::make_shared<dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> >(
+      private_nh);
+  dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig>::CallbackType f;
+  f = boost::bind(&Convert::callback, this, _1, _2);
+  srv_->setCallback(f);
+
+  // subscribe to /odom
+  odom_sub_ = odom_spinner_.get_nh()->subscribe("/odom", 5, &Convert::processOdom, (Convert*)this);
+  odom_spinner_.start();
+
+  // subscribe to VelodyneScan packets
+  velodyne_scan_ = node.subscribe("velodyne_packets", 10, &Convert::processScan, (Convert*)this,
+                                  ros::TransportHints().tcpNoDelay(true));
+
+  section_angle_ = 0.0;
+}
+
+void Convert::callback(velodyne_pointcloud::CloudNodeConfig& config, uint32_t level)
+{
   ROS_INFO("Reconfigure Request");
   data_->setParameters(config.min_range, config.max_range, config.view_direction,
                        config.view_width);
+}
+
+/** @brief Callback for odometry messages. */
+void Convert::processOdom(const nav_msgs::Odometry::ConstPtr& odomMsg)
+{
+  // ROS_DEBUG_STREAM(" Odom_rcvd: " << odomMsg->header.stamp << ", Now :" << ros::Time::now());
+  boost::lock_guard<boost::mutex> lock(mutex_);
+  // Save last N odom messages sorted by time
+  if (odom_sorted_.empty()) {
+    odom_sorted_.push_back(*odomMsg);
+  } else {
+    std::vector<nav_msgs::Odometry>::iterator low =
+        std::lower_bound(odom_sorted_.begin(), odom_sorted_.end(), *odomMsg, timecomparison());
+    odom_sorted_.insert(low, *odomMsg);
+    if (odom_sorted_.size() > SIZE_OF_ODOM_LIST) {
+      odom_sorted_.erase(odom_sorted_.begin());
+    }
   }
-  
-  /** @brief Callback for odometry messages. */
-  void Convert::processOdom(const nav_msgs::Odometry::ConstPtr &odomMsg)
-  {
-    //ROS_DEBUG_STREAM(" Odom_rcvd: " << odomMsg->header.stamp << ", Now :" << ros::Time::now());
-    boost::lock_guard<boost::mutex> lock(mutex_);
-    // Save last N odom messages sorted by time
-    if(odom_sorted_.empty()){
-        odom_sorted_.push_back(*odomMsg);
+}
+
+void Convert::debugPrintOdom()
+{
+  std::vector<nav_msgs::Odometry>::iterator it;
+  for (it = odom_sorted_.begin(); it != odom_sorted_.end(); ++it) {
+    ROS_INFO_STREAM("Time: " << it->header.stamp << ", px: " << it->pose.pose.position.x << ", py: "
+                             << it->pose.pose.position.y << ", pz: " << it->pose.pose.position.z
+                             << ", qx: " << it->pose.pose.orientation.x
+                             << ", qy: " << it->pose.pose.orientation.y
+                             << ", qy: " << it->pose.pose.orientation.z
+                             << ", qw: " << it->pose.pose.orientation.w);
+  }
+}
+
+std::vector<nav_msgs::Odometry>::iterator Convert::getClosestOdom(const ros::Time& packet_time,
+                                                                  bool past_only = false)
+{
+  nav_msgs::Odometry temp_odom;
+  temp_odom.header.stamp = packet_time;
+  if (odom_sorted_.empty()) { // If no odometry msgs, return end
+    return odom_sorted_.end();
+  }
+
+  std::vector<nav_msgs::Odometry>::iterator it =
+      std::lower_bound(odom_sorted_.begin(), odom_sorted_.end(), temp_odom, timecomparison());
+  if (past_only) {                    // If only past msgs are to be used,
+    if (it == odom_sorted_.begin()) { // If next highest msg is the oldest in the queue
+      return odom_sorted_.end();      // return end, indicating no closest in the past
+    }
+    return it - 1; // Return the immediate past msg
+  } else {         // If both past and future msgs are to be used, find the closest
+    if (it == odom_sorted_.begin()) {
+      return it;
+    } else if (it == odom_sorted_.end()) {
+      return it - 1;
     } else {
-        std::vector<nav_msgs::Odometry>::iterator low = std::lower_bound(odom_sorted_.begin(), odom_sorted_.end(), *odomMsg, timecomparison());
-        odom_sorted_.insert(low, *odomMsg);
-        if(odom_sorted_.size() > SIZE_OF_ODOM_LIST){
-            odom_sorted_.erase(odom_sorted_.begin());
-        }
+      std::vector<nav_msgs::Odometry>::iterator larger_time_it = it;
+      std::vector<nav_msgs::Odometry>::iterator smaller_time_it = it - 1;
+      if ((larger_time_it->header.stamp - packet_time) <=
+          (packet_time - smaller_time_it->header.stamp)) {
+        return larger_time_it;
+      } else {
+        return smaller_time_it;
+      }
     }
   }
-  
-  void Convert::debugPrintOdom(){
-      std::vector<nav_msgs::Odometry>::iterator it;
-      for(it = odom_sorted_.begin(); it!= odom_sorted_.end(); ++it){
-          ROS_INFO_STREAM("Time: " << it->header.stamp <<
-           ", px: " << it->pose.pose.position.x << 
-           ", py: " << it->pose.pose.position.y << 
-           ", pz: " << it->pose.pose.position.z << 
-           ", qx: " << it->pose.pose.orientation.x << 
-           ", qy: " << it->pose.pose.orientation.y << 
-           ", qy: " << it->pose.pose.orientation.z <<
-           ", qw: " << it->pose.pose.orientation.w);
-      }
-  }
-  
-  std::vector<nav_msgs::Odometry>::iterator Convert::getClosestOdom(const ros::Time& packet_time, bool past_only = false){
-      nav_msgs::Odometry temp_odom;
-      temp_odom.header.stamp = packet_time;
-      if(odom_sorted_.empty()){     // If no odometry msgs, return end
-          return odom_sorted_.end();
-      }
-      
-      std::vector<nav_msgs::Odometry>::iterator it = std::lower_bound(odom_sorted_.begin(), odom_sorted_.end(), temp_odom, timecomparison());
-      if(past_only){  // If only past msgs are to be used,
-          if(it == odom_sorted_.begin()){ // If next highest msg is the oldest in the queue
-              return odom_sorted_.end();  // return end, indicating no closest in the past
-          }
-          return it-1; // Return the immediate past msg
-      } else { // If both past and future msgs are to be used, find the closest
-          if(it == odom_sorted_.begin()){
-              return it;
-          } else if (it == odom_sorted_.end()){
-              return it-1;
-          } else {  
-              std::vector<nav_msgs::Odometry>::iterator larger_time_it = it;
-              std::vector<nav_msgs::Odometry>::iterator smaller_time_it = it-1;
-              if((larger_time_it->header.stamp - packet_time) <= (packet_time - smaller_time_it->header.stamp)){
-                  return larger_time_it;
-              } else{
-                  return smaller_time_it;
-              }
-          }
-      }
+}
+
+/** @brief Callback for raw scan messages. */
+void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
+{
+  if (output_.getNumSubscribers() == 0) // no one listening?
+    return;                             // avoid much work
+
+  velodyne_rawdata::VPointCloud scan;
+
+  // process each packet provided by the driver and save them
+  for (size_t i = 0; i < scanMsg->packets.size(); ++i) {
+    // scan's header is a pcl::PCLHeader, convert it before stamp assignment
+    scan.header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
+    scan.header.frame_id = scanMsg->header.frame_id;
+    scan.height = 1;
+
+    section_angle_ += data_->unpack(scanMsg->packets[i], scan);
+    time_stamps_.push_back(scanMsg->packets[i].stamp);
+    scans_.push_back(scan);
+    // std::cout << "accumulated angle: " << section_angle_ << std::endl;
   }
 
-  /** @brief Callback for raw scan messages. */
-  void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg)
-  {
-    if (output_.getNumSubscribers() == 0)         // no one listening?
-      return;                                     // avoid much work
-      
-    velodyne_rawdata::VPointCloud scan;
-    
-    // process each packet provided by the driver and save them
-    for (size_t i = 0; i < scanMsg->packets.size(); ++i)
-    {
-        // scan's header is a pcl::PCLHeader, convert it before stamp assignment
-        scan.header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
-        scan.header.frame_id = scanMsg->header.frame_id;
-        scan.height = 1;
-        
-      section_angle_ += data_->unpack(scanMsg->packets[i], scan);
-      time_stamps_.push_back(scanMsg->packets[i].stamp);
-      scans_.push_back(scan);
-      //std::cout << "accumulated angle: " << section_angle_ << std::endl;
+  // Once we saved all packets for the last full 360 degrees, deskew them and publish
+  if (section_angle_ / 100.0 >= 360.0) {
+    accumulated_cloud_.header.stamp = scan.header.stamp;
+    accumulated_cloud_.header.frame_id = scan.header.frame_id;
+    accumulated_cloud_.height = scan.height;
+    deskewPoints(scanMsg->header.stamp);
+    accumulated_cloud_.width = accumulated_cloud_.points.size();
+    output_.publish(accumulated_cloud_);
+    ROS_INFO("Size = %d", accumulated_cloud_.width);
+    ROS_INFO("Published");
+    // Reset the buffers after publish
+    section_angle_ = 0.0;
+    accumulated_cloud_.points.clear();
+    accumulated_cloud_.width = 0;
+    time_stamps_.clear();
+    scans_.clear();
+  }
+}
+
+void Convert::deskewPoints(ros::Time pointcloud_timestamp)
+{
+  bool deskew_ = true;
+  velodyne_rawdata::VPointCloud deskewed_cloud;
+  tf::Transform packet_tf, pointcloud_tf, diff_tf;
+
+  // Get the odometry closest to the last packet timestamp (overall pointcloud timestamp) in the
+  // past
+  std::vector<nav_msgs::Odometry>::iterator prev_odom_it =
+      getClosestOdom(pointcloud_timestamp, true);
+
+  if (odom_sorted_.size() <= 2 || prev_odom_it == odom_sorted_.end()) {
+    deskew_ = false;
+    ROS_INFO_STREAM(" No deskew: " << pointcloud_timestamp << ", Now :" << ros::Time::now());
+    debugPrintOdom();
+  }
+  if (deskew_) {
+    double time_diff = (pointcloud_timestamp - prev_odom_it->header.stamp).toSec();
+    ROS_DEBUG("Time diff = %f", time_diff);
+    nav_msgs::Odometry odom_at_timestamp;
+    odom_at_timestamp.header.stamp = pointcloud_timestamp;
+    odom_at_timestamp.pose.pose.position.x =
+        prev_odom_it->pose.pose.position.x + prev_odom_it->twist.twist.linear.x * time_diff;
+    odom_at_timestamp.pose.pose.position.y =
+        prev_odom_it->pose.pose.position.y + prev_odom_it->twist.twist.linear.y * time_diff;
+    odom_at_timestamp.pose.pose.position.z = prev_odom_it->pose.pose.position.z;
+
+    double yaw = tf::getYaw(prev_odom_it->pose.pose.orientation);
+    double updated_yaw = yaw + prev_odom_it->twist.twist.angular.z * time_diff;
+    ROS_DEBUG("Yaw = %f, Updated Yaw = %f", yaw, updated_yaw);
+
+    odom_at_timestamp.pose.pose.orientation =
+        tf::createQuaternionMsgFromRollPitchYaw(0.0, 0.0, updated_yaw);
+
+    odom_at_timestamp.twist.twist.linear.x = prev_odom_it->twist.twist.linear.x;
+    odom_at_timestamp.twist.twist.linear.y = prev_odom_it->twist.twist.linear.y;
+    odom_at_timestamp.twist.twist.linear.z = prev_odom_it->twist.twist.linear.z;
+    odom_at_timestamp.twist.twist.angular.x = prev_odom_it->twist.twist.angular.x;
+    odom_at_timestamp.twist.twist.angular.y = prev_odom_it->twist.twist.angular.y;
+    odom_at_timestamp.twist.twist.angular.z = prev_odom_it->twist.twist.angular.z;
+
+    ROS_DEBUG_STREAM("Packet timestamp = "
+                     << pointcloud_timestamp << " Odom_closest: " << prev_odom_it->header.stamp
+                     << ", px: " << odom_at_timestamp.pose.pose.position.x
+                     << ", py: " << odom_at_timestamp.pose.pose.position.y
+                     << ", pz: " << odom_at_timestamp.pose.pose.position.z
+                     << ", qx: " << odom_at_timestamp.pose.pose.orientation.x
+                     << ", qy: " << odom_at_timestamp.pose.pose.orientation.y
+                     << ", qy: " << odom_at_timestamp.pose.pose.orientation.z
+                     << ", qw: " << odom_at_timestamp.pose.pose.orientation.w);
+
+    tf::poseMsgToTF(odom_at_timestamp.pose.pose, pointcloud_tf);
+  }
+  for (std::vector<ros::Time>::iterator it = time_stamps_.begin(); it != time_stamps_.end(); ++it) {
+    int index = std::distance(time_stamps_.begin(), it);
+    if (deskew_) {
+      std::vector<nav_msgs::Odometry>::iterator nit = getClosestOdom(*it);
+      /*ROS_INFO_STREAM("Packet timestamp = " << pointcloud_timestamp <<
+       " Odom_closest: " << nit->header.stamp <<
+       ", px: " << nit->pose.pose.position.x <<
+       ", py: " << nit->pose.pose.position.y <<
+       ", pz: " << nit->pose.pose.position.z <<
+       ", qx: " << nit->pose.pose.orientation.x <<
+       ", qy: " << nit->pose.pose.orientation.y <<
+       ", qy: " << nit->pose.pose.orientation.z <<
+       ", qw: " << nit->pose.pose.orientation.w);*/
+      tf::poseMsgToTF(nit->pose.pose, packet_tf);
+      diff_tf = pointcloud_tf.inverseTimes(packet_tf);
+      geometry_msgs::Pose diff_pose;
+      tf::poseTFToMsg(diff_tf, diff_pose);
+      /*ROS_INFO_STREAM(
+      "px: " << diff_pose.position.x <<
+      ", py: " << diff_pose.position.y <<
+      ", pz: " << diff_pose.position.z <<
+      ", qx: " << diff_pose.orientation.x <<
+      ", qy: " << diff_pose.orientation.y <<
+      ", qz: " << diff_pose.orientation.z <<
+      ", qw: " << diff_pose.orientation.w);*/
+
+      pcl_ros::transformPointCloud(scans_[index], deskewed_cloud, diff_tf);
+      /*ROS_INFO_STREAM(
+      "  px: " << scans_[index].points[0].x <<
+      ", py: " << scans_[index].points[0].y <<
+      ", pz: " << scans_[index].points[0].z);
+      ROS_INFO_STREAM(
+      "  px: " << deskewed_cloud.points[0].x <<
+      ", py: " << deskewed_cloud.points[0].y <<
+      ", pz: " << deskewed_cloud.points[0].z);*/
+    } else {
+      deskewed_cloud = scans_[index];
     }
-    
-    // Once we saved all packets for the last full 360 degrees, deskew them and publish
-    if(section_angle_/100.0 >= 360.0)
-    {
-      accumulated_cloud_.header.stamp = scan.header.stamp;
-      accumulated_cloud_.header.frame_id = scan.header.frame_id;
-      accumulated_cloud_.height = scan.height;
-      deskewPoints(scanMsg->header.stamp);
-      accumulated_cloud_.width = accumulated_cloud_.points.size();
-      output_.publish(accumulated_cloud_);
-      ROS_INFO("Size = %d", accumulated_cloud_.width);
-      ROS_INFO("Published");
-      // Reset the buffers after publish
-      section_angle_ = 0.0;
-      accumulated_cloud_.points.clear();
-      accumulated_cloud_.width = 0;
-      time_stamps_.clear();
-      scans_.clear();
-    } 
+    // Accumulate the pt cloud
+    accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), deskewed_cloud.points.begin(),
+                                     deskewed_cloud.points.end());
   }
-  
-  void Convert::deskewPoints(ros::Time pointcloud_timestamp)
-  {
-      bool deskew_ = true;
-      velodyne_rawdata::VPointCloud deskewed_cloud;
-      tf::Transform packet_tf, pointcloud_tf, diff_tf;
-      
-      // Get the odometry closest to the last packet timestamp (overall pointcloud timestamp) in the past
-      std::vector<nav_msgs::Odometry>::iterator prev_odom_it = getClosestOdom(pointcloud_timestamp, true);
-      
-      if (odom_sorted_.size() <= 2 || prev_odom_it == odom_sorted_.end())
-      {
-          deskew_ = false;
-          ROS_INFO_STREAM(" No deskew: " << pointcloud_timestamp << ", Now :" << ros::Time::now());
-          debugPrintOdom();
-      }
-      if (deskew_){
-          double time_diff = (pointcloud_timestamp - prev_odom_it->header.stamp).toSec();
-          ROS_DEBUG("Time diff = %f", time_diff);
-          nav_msgs::Odometry odom_at_timestamp;
-          odom_at_timestamp.header.stamp = pointcloud_timestamp;
-          odom_at_timestamp.pose.pose.position.x = prev_odom_it->pose.pose.position.x + prev_odom_it->twist.twist.linear.x * time_diff;
-          odom_at_timestamp.pose.pose.position.y = prev_odom_it->pose.pose.position.y + prev_odom_it->twist.twist.linear.y * time_diff;
-          odom_at_timestamp.pose.pose.position.z = prev_odom_it->pose.pose.position.z;
-
-          double yaw = tf::getYaw(prev_odom_it->pose.pose.orientation);
-          double updated_yaw = yaw + prev_odom_it->twist.twist.angular.z * time_diff;
-          ROS_DEBUG("Yaw = %f, Updated Yaw = %f", yaw, updated_yaw);
-          
-          odom_at_timestamp.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0.0,0.0,updated_yaw);
-          
-          odom_at_timestamp.twist.twist.linear.x = prev_odom_it->twist.twist.linear.x;
-          odom_at_timestamp.twist.twist.linear.y = prev_odom_it->twist.twist.linear.y;
-          odom_at_timestamp.twist.twist.linear.z = prev_odom_it->twist.twist.linear.z;
-          odom_at_timestamp.twist.twist.angular.x = prev_odom_it->twist.twist.angular.x;
-          odom_at_timestamp.twist.twist.angular.y = prev_odom_it->twist.twist.angular.y;
-          odom_at_timestamp.twist.twist.angular.z = prev_odom_it->twist.twist.angular.z;
-          
-          ROS_DEBUG_STREAM("Packet timestamp = " << pointcloud_timestamp <<
-           " Odom_closest: " << prev_odom_it->header.stamp <<
-           ", px: " << odom_at_timestamp.pose.pose.position.x << 
-           ", py: " << odom_at_timestamp.pose.pose.position.y << 
-           ", pz: " << odom_at_timestamp.pose.pose.position.z << 
-           ", qx: " << odom_at_timestamp.pose.pose.orientation.x << 
-           ", qy: " << odom_at_timestamp.pose.pose.orientation.y << 
-           ", qy: " << odom_at_timestamp.pose.pose.orientation.z <<
-           ", qw: " << odom_at_timestamp.pose.pose.orientation.w);
-           
-           tf::poseMsgToTF(odom_at_timestamp.pose.pose, pointcloud_tf);
-      }
-       for(std::vector<ros::Time>::iterator it = time_stamps_.begin(); it != time_stamps_.end(); ++it){
-           int index = std::distance(time_stamps_.begin(), it);
-           if(deskew_){
-               std::vector<nav_msgs::Odometry>::iterator nit = getClosestOdom(*it);
-                /*ROS_INFO_STREAM("Packet timestamp = " << pointcloud_timestamp <<
-                 " Odom_closest: " << nit->header.stamp <<
-                 ", px: " << nit->pose.pose.position.x << 
-                 ", py: " << nit->pose.pose.position.y << 
-                 ", pz: " << nit->pose.pose.position.z << 
-                 ", qx: " << nit->pose.pose.orientation.x << 
-                 ", qy: " << nit->pose.pose.orientation.y << 
-                 ", qy: " << nit->pose.pose.orientation.z <<
-                 ", qw: " << nit->pose.pose.orientation.w);*/
-                tf::poseMsgToTF(nit->pose.pose, packet_tf);
-                diff_tf = pointcloud_tf.inverseTimes(packet_tf);
-                geometry_msgs::Pose diff_pose;
-                tf::poseTFToMsg(diff_tf, diff_pose);
-                /*ROS_INFO_STREAM(
-                "px: " << diff_pose.position.x << 
-                ", py: " << diff_pose.position.y << 
-                ", pz: " << diff_pose.position.z << 
-                ", qx: " << diff_pose.orientation.x << 
-                ", qy: " << diff_pose.orientation.y << 
-                ", qz: " << diff_pose.orientation.z <<
-                ", qw: " << diff_pose.orientation.w);*/
-                
-                pcl_ros::transformPointCloud(scans_[index], deskewed_cloud, diff_tf);
-                /*ROS_INFO_STREAM(
-                "  px: " << scans_[index].points[0].x << 
-                ", py: " << scans_[index].points[0].y << 
-                ", pz: " << scans_[index].points[0].z);
-                ROS_INFO_STREAM(
-                "  px: " << deskewed_cloud.points[0].x << 
-                ", py: " << deskewed_cloud.points[0].y << 
-                ", pz: " << deskewed_cloud.points[0].z);*/
-           } else {
-               deskewed_cloud = scans_[index];
-           }
-           //Accumulate the pt cloud
-           accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), deskewed_cloud.points.begin(), deskewed_cloud.points.end());
-       }
-  }
+}
 } // namespace velodyne_pointcloud
