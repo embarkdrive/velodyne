@@ -82,6 +82,7 @@ public:
     velodyne_rawdata::VPointCloud accumulated_cloud_;
     float section_angle_;
     
+    bool deskew_;
     std::vector<nav_msgs::Odometry> odom_sorted_;
     std::vector<ros::Time> time_stamps_;
     

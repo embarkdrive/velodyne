@@ -22,6 +22,7 @@ namespace velodyne_pointcloud
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
     data_(new velodyne_rawdata::RawData()),
+    deskew_(true),
     odom_spinner_(&node, ""),
     tf_available_(false)
   {
@@ -145,7 +146,7 @@ namespace velodyne_pointcloud
     }
     
     // Once we saved all packets for the last full 360 degrees, deskew them and publish
-    if(section_angle_/100.0 >= 360.0)
+    if(section_angle_/100.0 >= 60.0)
     {
       accumulated_cloud_.header.stamp = scan.header.stamp;
       accumulated_cloud_.header.frame_id = scan.header.frame_id;
@@ -166,7 +167,6 @@ namespace velodyne_pointcloud
   
   void Convert::deskewPoints(ros::Time pointcloud_timestamp)
   {
-      bool deskew_ = true;
       velodyne_rawdata::VPointCloud deskewed_cloud;
       tf::Transform packet_tf, pointcloud_tf, diff_tf;
       
@@ -273,7 +273,7 @@ namespace velodyne_pointcloud
                 diff_tf = pointcloud_tf.inverseTimes(packet_tf);
                 geometry_msgs::Pose diff_pose;
                 tf::poseTFToMsg(diff_tf, diff_pose);
-                ROS_INFO_STREAM(
+                /*ROS_INFO_STREAM(
                 "diff pose = " <<
                 "px: " << diff_pose.position.x << 
                 ", py: " << diff_pose.position.y << 
@@ -281,7 +281,7 @@ namespace velodyne_pointcloud
                 ", qx: " << diff_pose.orientation.x << 
                 ", qy: " << diff_pose.orientation.y << 
                 ", qz: " << diff_pose.orientation.z <<
-                ", qw: " << diff_pose.orientation.w);
+                ", qw: " << diff_pose.orientation.w);*/
                 
                 pcl_ros::transformPointCloud(scans_[index], deskewed_cloud, diff_tf);
                 /*ROS_INFO_STREAM(
