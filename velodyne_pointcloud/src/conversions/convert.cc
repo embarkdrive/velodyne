@@ -142,27 +142,26 @@ namespace velodyne_pointcloud
       section_angle_ += data_->unpack(scanMsg->packets[i], scan);
       time_stamps_.push_back(scanMsg->packets[i].stamp);
       scans_.push_back(scan);
-      //std::cout << "accumulated angle: " << section_angle_ << std::endl;
+      // Once we saved all packets for the last full 360 degrees, deskew them and publish
+      if(section_angle_/100.0 >= 360.0)
+      {
+        //std::cout << "accumulated angle: " << section_angle_ << std::endl;
+        accumulated_cloud_.header.stamp = scan.header.stamp;
+        accumulated_cloud_.header.frame_id = scan.header.frame_id;
+        accumulated_cloud_.height = scan.height;
+        deskewPoints(scanMsg->header.stamp);
+        accumulated_cloud_.width = accumulated_cloud_.points.size();
+        output_.publish(accumulated_cloud_);
+        //ROS_INFO("Size = %d", accumulated_cloud_.width);
+        //ROS_INFO("Published");
+        // Reset the buffers after publish
+        section_angle_ = 0.0;
+        accumulated_cloud_.points.clear();
+        accumulated_cloud_.width = 0;
+        time_stamps_.clear();
+        scans_.clear();
+      } 
     }
-    
-    // Once we saved all packets for the last full 360 degrees, deskew them and publish
-    if(section_angle_/100.0 >= 60.0)
-    {
-      accumulated_cloud_.header.stamp = scan.header.stamp;
-      accumulated_cloud_.header.frame_id = scan.header.frame_id;
-      accumulated_cloud_.height = scan.height;
-      deskewPoints(scanMsg->header.stamp);
-      accumulated_cloud_.width = accumulated_cloud_.points.size();
-      output_.publish(accumulated_cloud_);
-      //ROS_INFO("Size = %d", accumulated_cloud_.width);
-      //ROS_INFO("Published");
-      // Reset the buffers after publish
-      section_angle_ = 0.0;
-      accumulated_cloud_.points.clear();
-      accumulated_cloud_.width = 0;
-      time_stamps_.clear();
-      scans_.clear();
-    } 
   }
   
   void Convert::deskewPoints(ros::Time pointcloud_timestamp)

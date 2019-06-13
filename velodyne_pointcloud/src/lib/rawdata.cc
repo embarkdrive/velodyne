@@ -332,6 +332,7 @@ namespace velodyne_rawdata
         last_azimuth_diff = azimuth_diff;
       }else{
         azimuth_diff = last_azimuth_diff;
+        slice_angle += azimuth_diff;
       }
 
       for (int firing_seq=0, k=0; firing_seq < vlp_spec_.firing_seqs_per_block; firing_seq++){
