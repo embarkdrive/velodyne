@@ -22,7 +22,7 @@ namespace velodyne_pointcloud
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
     data_(new velodyne_rawdata::RawData()),
-    deskew_(true),
+    deskew_(false),
     odom_spinner_(&node, ""),
     tf_available_(false)
   {
@@ -173,14 +173,12 @@ namespace velodyne_pointcloud
           try {
               tf_listener_.waitForTransform("/vehicle_frame", accumulated_cloud_.header.frame_id, ros::Time::now(), ros::Duration(0));
               tf_listener_.lookupTransform("/vehicle_frame", accumulated_cloud_.header.frame_id, ros::Time::now(), vehicle_to_velodyne_transform_);
+              tf_available_ = true;
           } catch (tf::TransformException ex){
-              deskew_ = false;
               tf_available_ = false;
               ROS_WARN_THROTTLE(60, "vehicle to velodyne transform unavailable %s", ex.what());
           }
-          if(deskew_){
-              tf_available_ = true;
-          }
+          deskew_ = tf_available_;
       }
       
       // Get the odometry closest to the last packet timestamp (overall pointcloud timestamp) in the past
@@ -192,6 +190,10 @@ namespace velodyne_pointcloud
           ROS_INFO_STREAM(" No deskew: " << pointcloud_timestamp << ", Now :" << ros::Time::now());
           debugPrintOdom();
       }
+      else{
+          deskew_ = true;
+      }
+      
       if (deskew_){
           double time_diff = (pointcloud_timestamp - prev_odom_it->header.stamp).toSec();
           ROS_INFO("Time diff = %f", time_diff);
