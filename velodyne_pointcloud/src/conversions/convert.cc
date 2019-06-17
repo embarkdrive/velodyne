@@ -143,7 +143,7 @@ namespace velodyne_pointcloud
       time_stamps_.push_back(scanMsg->packets[i].stamp);
       scans_.push_back(scan);
       // Once we saved all packets for the last full 360 degrees, deskew them and publish
-      if(section_angle_/100.0 >= 360.0)
+      if(section_angle_/100.0 >= 358.0)
       {
         //std::cout << "accumulated angle: " << section_angle_ << std::endl;
         accumulated_cloud_.header.stamp = scan.header.stamp;
