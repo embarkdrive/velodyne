@@ -65,6 +65,7 @@ public:
                 uint32_t level);
     void processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg);
     void processOdom(const nav_msgs::Odometry::ConstPtr &odomMsg);
+    void timeUpdateOdom(const nav_msgs::Odometry& input_odom, nav_msgs::Odometry& updated_odom);
     std::vector<nav_msgs::Odometry>::iterator getClosestOdom(const ros::Time& packet_time, bool only_past);
     void deskewPoints(ros::Time pointcloud_timestamp);
     void debugPrintOdom();

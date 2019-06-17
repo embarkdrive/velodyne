@@ -164,6 +164,38 @@ namespace velodyne_pointcloud
     }
   }
   
+  void Convert::timeUpdateOdom(const nav_msgs::Odometry& input_odom, nav_msgs::Odometry& updated_odom)
+  {
+      double time_diff = (updated_odom.header.stamp - input_odom.header.stamp).toSec();
+      //ROS_INFO("Time diff = %f", time_diff);
+      updated_odom.pose.pose.position.x = input_odom.pose.pose.position.x + input_odom.twist.twist.linear.x * time_diff;
+      updated_odom.pose.pose.position.y = input_odom.pose.pose.position.y + input_odom.twist.twist.linear.y * time_diff;
+      updated_odom.pose.pose.position.z = input_odom.pose.pose.position.z;
+
+      double yaw = tf::getYaw(input_odom.pose.pose.orientation);
+      double updated_yaw = yaw + input_odom.twist.twist.angular.z * time_diff;
+      ROS_DEBUG("Yaw = %f, Updated Yaw = %f", yaw, updated_yaw);
+      
+      updated_odom.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0.0,0.0,updated_yaw);
+      
+      updated_odom.twist.twist.linear.x = input_odom.twist.twist.linear.x;
+      updated_odom.twist.twist.linear.y = input_odom.twist.twist.linear.y;
+      updated_odom.twist.twist.linear.z = input_odom.twist.twist.linear.z;
+      updated_odom.twist.twist.angular.x = input_odom.twist.twist.angular.x;
+      updated_odom.twist.twist.angular.y = input_odom.twist.twist.angular.y;
+      updated_odom.twist.twist.angular.z = input_odom.twist.twist.angular.z;
+      
+      ROS_DEBUG_STREAM("Pointcloud timestamp = " << updated_odom.header.stamp <<
+       " Odom_closest: " << input_odom.header.stamp <<
+       ", px: " << updated_odom.pose.pose.position.x << 
+       ", py: " << updated_odom.pose.pose.position.y << 
+       ", pz: " << updated_odom.pose.pose.position.z << 
+       ", qx: " << updated_odom.pose.pose.orientation.x << 
+       ", qy: " << updated_odom.pose.pose.orientation.y << 
+       ", qy: " << updated_odom.pose.pose.orientation.z <<
+       ", qw: " << updated_odom.pose.pose.orientation.w);
+  }
+  
   void Convert::deskewPoints(ros::Time pointcloud_timestamp)
   {
       velodyne_rawdata::VPointCloud deskewed_cloud;
@@ -195,36 +227,10 @@ namespace velodyne_pointcloud
       }
       
       if (deskew_){
-          double time_diff = (pointcloud_timestamp - prev_odom_it->header.stamp).toSec();
-          //ROS_INFO("Time diff = %f", time_diff);
           nav_msgs::Odometry odom_at_timestamp;
           odom_at_timestamp.header.stamp = pointcloud_timestamp;
-          odom_at_timestamp.pose.pose.position.x = prev_odom_it->pose.pose.position.x + prev_odom_it->twist.twist.linear.x * time_diff;
-          odom_at_timestamp.pose.pose.position.y = prev_odom_it->pose.pose.position.y + prev_odom_it->twist.twist.linear.y * time_diff;
-          odom_at_timestamp.pose.pose.position.z = prev_odom_it->pose.pose.position.z;
-
-          double yaw = tf::getYaw(prev_odom_it->pose.pose.orientation);
-          double updated_yaw = yaw + prev_odom_it->twist.twist.angular.z * time_diff;
-          ROS_DEBUG("Yaw = %f, Updated Yaw = %f", yaw, updated_yaw);
           
-          odom_at_timestamp.pose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0.0,0.0,updated_yaw);
-          
-          odom_at_timestamp.twist.twist.linear.x = prev_odom_it->twist.twist.linear.x;
-          odom_at_timestamp.twist.twist.linear.y = prev_odom_it->twist.twist.linear.y;
-          odom_at_timestamp.twist.twist.linear.z = prev_odom_it->twist.twist.linear.z;
-          odom_at_timestamp.twist.twist.angular.x = prev_odom_it->twist.twist.angular.x;
-          odom_at_timestamp.twist.twist.angular.y = prev_odom_it->twist.twist.angular.y;
-          odom_at_timestamp.twist.twist.angular.z = prev_odom_it->twist.twist.angular.z;
-          
-          ROS_DEBUG_STREAM("Pointcloud timestamp = " << pointcloud_timestamp <<
-           " Odom_closest: " << prev_odom_it->header.stamp <<
-           ", px: " << odom_at_timestamp.pose.pose.position.x << 
-           ", py: " << odom_at_timestamp.pose.pose.position.y << 
-           ", pz: " << odom_at_timestamp.pose.pose.position.z << 
-           ", qx: " << odom_at_timestamp.pose.pose.orientation.x << 
-           ", qy: " << odom_at_timestamp.pose.pose.orientation.y << 
-           ", qy: " << odom_at_timestamp.pose.pose.orientation.z <<
-           ", qw: " << odom_at_timestamp.pose.pose.orientation.w);
+          timeUpdateOdom(*prev_odom_it, odom_at_timestamp);
            
            tf::Transform odom_tf;
            tf::poseMsgToTF(odom_at_timestamp.pose.pose, odom_tf);
@@ -255,8 +261,14 @@ namespace velodyne_pointcloud
                  ", qy: " << nit->pose.pose.orientation.y << 
                  ", qy: " << nit->pose.pose.orientation.z <<
                  ", qw: " << nit->pose.pose.orientation.w);
+                 
+                nav_msgs::Odometry odom_at_timestamp;
+                odom_at_timestamp.header.stamp = *it;
+                 
+                timeUpdateOdom(*nit, odom_at_timestamp);
+                
                 tf::Transform odom_tf;
-                tf::poseMsgToTF(nit->pose.pose, odom_tf);
+                tf::poseMsgToTF(odom_at_timestamp.pose.pose, odom_tf);
                 packet_tf.mult(odom_tf, vehicle_to_velodyne_transform_);
                 
                 /*geometry_msgs::Pose packet_pose;
