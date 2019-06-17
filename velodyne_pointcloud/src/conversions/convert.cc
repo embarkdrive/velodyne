@@ -196,7 +196,7 @@ namespace velodyne_pointcloud
       
       if (deskew_){
           double time_diff = (pointcloud_timestamp - prev_odom_it->header.stamp).toSec();
-          ROS_INFO("Time diff = %f", time_diff);
+          //ROS_INFO("Time diff = %f", time_diff);
           nav_msgs::Odometry odom_at_timestamp;
           odom_at_timestamp.header.stamp = pointcloud_timestamp;
           odom_at_timestamp.pose.pose.position.x = prev_odom_it->pose.pose.position.x + prev_odom_it->twist.twist.linear.x * time_diff;
