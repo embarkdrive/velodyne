@@ -84,6 +84,7 @@ public:
     float section_angle_;
     
     bool deskew_;
+    bool deskew_param_;
     std::vector<nav_msgs::Odometry> odom_sorted_;
     std::vector<ros::Time> time_stamps_;
     

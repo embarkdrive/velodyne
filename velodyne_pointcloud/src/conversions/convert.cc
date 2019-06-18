@@ -27,12 +27,18 @@ namespace velodyne_pointcloud
     tf_available_(false)
   {
     data_->setup(private_nh);
-
-
+    
+    private_nh.param("deskew", deskew_param_, false);
+    ROS_INFO("deskew_param_: %d", deskew_param_);
     // advertise output point cloud (before subscribing to input data)
-    output_ =
-      node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
-      
+    if(deskew_param_ == true){
+        output_ =
+          node.advertise<sensor_msgs::PointCloud2>("velodyne_points_deskewed", 10);
+    } else {
+        output_ =
+          node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
+    }
+    
     srv_ = boost::make_shared <dynamic_reconfigure::Server<velodyne_pointcloud::
       CloudNodeConfig> > (private_nh);
     dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig>::
@@ -210,7 +216,7 @@ namespace velodyne_pointcloud
               tf_available_ = false;
               ROS_WARN_THROTTLE(60, "vehicle to velodyne transform unavailable %s", ex.what());
           }
-          deskew_ = tf_available_;
+          deskew_ = deskew_param_ && tf_available_;
       }
       
       // Get the odometry closest to the last packet timestamp (overall pointcloud timestamp) in the past
@@ -223,7 +229,7 @@ namespace velodyne_pointcloud
           debugPrintOdom();
       }
       else{
-          deskew_ = true;
+          deskew_ = deskew_param_ && true;
       }
       
       if (deskew_){
