@@ -21,7 +21,8 @@ namespace velodyne_pointcloud
 {
   /** @brief Constructor. */
   Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh):
-    data_(new velodyne_rawdata::RawData())
+    data_(new velodyne_rawdata::RawData()),
+    prev_azimuth_(0.0)
   {
     data_->setup(private_nh);
 
@@ -42,8 +43,6 @@ namespace velodyne_pointcloud
       node.subscribe("velodyne_packets", 10,
                      &Convert::processScan, (Convert *) this,
                      ros::TransportHints().tcpNoDelay(true));
-
-    section_angle_ = 0.0;
   }
   
   void Convert::callback(velodyne_pointcloud::CloudNodeConfig &config,
@@ -72,32 +71,33 @@ namespace velodyne_pointcloud
     //std::cout << "Processing scan!\n"; 
     
     // process each packet provided by the driver
-    for (size_t i = 0; i < scanMsg->packets.size(); ++i)
-    {
-      section_angle_ += data_->unpack(scanMsg->packets[i], *outMsg);
-    }
+      for (size_t i = 0; i < scanMsg->packets.size(); ++i)
+      {
+          const velodyne_rawdata::raw_packet_t *raw = (const velodyne_rawdata::raw_packet_t *) &scanMsg->packets[i].data[0];
 
-    //Accumulate the pt cloud
-    accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), outMsg->points.begin(), outMsg->points.end());
-    accumulated_cloud_.width = accumulated_cloud_.points.size();
-    //std::cout << "accumulated angle: " << section_angle_ << std::endl;
-    
-    // publish the accumulated cloud message
-    ROS_DEBUG_STREAM("Publishing " << outMsg->height * outMsg->width
-                     << " Velodyne points, time: " << outMsg->header.stamp);
+           // azimuth corresponds to the starting sweep angle for the current packet
+           float azimuth = float(raw->blocks[0].rotation) / 100.0;
 
-    if(section_angle_/100.0 >= 360.0)
-    {
-      accumulated_cloud_.header.stamp = outMsg->header.stamp;
-      accumulated_cloud_.header.frame_id = outMsg->header.frame_id;
-      accumulated_cloud_.height = outMsg->height;
-      output_.publish(accumulated_cloud_);
-      section_angle_ = 0.0;
-      accumulated_cloud_.points.clear();
-      accumulated_cloud_.width = 0;
-    }             
-      
-    
+          // azimuth value will wrap around after a full 360 degree sweep
+          // once we save all packets for the last full 360 degrees, publish them
+          if(azimuth < prev_azimuth_)
+          {
+            accumulated_cloud_.header.stamp = outMsg->header.stamp;
+            accumulated_cloud_.header.frame_id = outMsg->header.frame_id;
+            accumulated_cloud_.height = outMsg->height;
+            accumulated_cloud_.width = accumulated_cloud_.points.size();
+            output_.publish(accumulated_cloud_);
+            
+            accumulated_cloud_.points.clear();
+            accumulated_cloud_.width = 0;
+          }
+
+        data_->unpack(scanMsg->packets[i], *outMsg);
+        //Accumulate the pt cloud
+        accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), outMsg->points.begin(), outMsg->points.end());
+
+        prev_azimuth_ = azimuth;
+      }
   }
 
 } // namespace velodyne_pointcloud
