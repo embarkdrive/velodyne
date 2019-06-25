@@ -8,6 +8,8 @@ add_message_files(
   FILES
   VelodynePacket.msg
   VelodyneScan.msg
+  VelodyneSweepInfo.msg
+  VelodyneDeskewInfo.msg
 )
 generate_messages(DEPENDENCIES std_msgs)
 
