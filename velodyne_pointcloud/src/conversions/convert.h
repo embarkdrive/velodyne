@@ -25,6 +25,9 @@
 #include <dynamic_reconfigure/server.h>
 #include <velodyne_pointcloud/CloudNodeConfig.h>
 
+#include <velodyne_msgs/VelodyneSweepInfo.h>
+#include <velodyne_msgs/VelodyneDeskewInfo.h>
+
 namespace velodyne_pointcloud
 {
   class Convert
@@ -38,6 +41,7 @@ namespace velodyne_pointcloud
     
     void callback(velodyne_pointcloud::CloudNodeConfig &config,
                 uint32_t level);
+    velodyne_msgs::VelodyneSweepInfo create_sweep_entry(ros::Time stamp, float angle);
     void processScan(const velodyne_msgs::VelodyneScan::ConstPtr &scanMsg);
 
     ///Pointer to dynamic reconfigure service srv_
@@ -46,11 +50,13 @@ namespace velodyne_pointcloud
     
     boost::shared_ptr<velodyne_rawdata::RawData> data_;
     ros::Subscriber velodyne_scan_;
-    ros::Publisher output_;
+    ros::Publisher output_pointcloud_, output_deskew_info_;
 
     //make the pointcloud container a member variable to append different slices
     velodyne_rawdata::VPointCloud accumulated_cloud_;
-    float section_angle_;
+    velodyne_msgs::VelodyneDeskewInfo deskew_info_;
+    float prev_azimuth_;
+    ros::Time prev_stamp_;
     /// configuration parameters
     typedef struct {
       int npackets;                    ///< number of packets to combine
