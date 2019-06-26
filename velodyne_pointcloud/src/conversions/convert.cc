@@ -30,11 +30,11 @@ namespace velodyne_pointcloud
 
     // advertise output point cloud (before subscribing to input data)
     output_pointcloud_ =
-      node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
+      node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 2);
     
     // advertise output deskew info
     output_deskew_info_ =
-      node.advertise<velodyne_msgs::VelodyneDeskewInfo>("velodyne_deskew_info", 10);
+      node.advertise<velodyne_msgs::VelodyneDeskewInfo>("velodyne_deskew_info", 2);
         
     srv_ = boost::make_shared <dynamic_reconfigure::Server<velodyne_pointcloud::
       CloudNodeConfig> > (private_nh);
@@ -48,7 +48,7 @@ namespace velodyne_pointcloud
     
     // subscribe to VelodyneScan packets
     velodyne_scan_ =
-      node.subscribe("velodyne_packets", 10,
+      node.subscribe("velodyne_packets", 2,
                      &Convert::processScan, (Convert *) this,
                      ros::TransportHints().tcpNoDelay(true));
   }
