@@ -77,46 +77,27 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
 
     // azimuth value will wrap around after a full 360 degree sweep
     if (azimuth < prev_azimuth_) {
-      ROS_INFO("Azimuth = %.2f (prev = %.2f), publish", azimuth, prev_azimuth_);
-
       // Publish data for the full sweep
       accumulated_cloud_.header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
       accumulated_cloud_.header.frame_id = scanMsg->header.frame_id;
       assert(accumulated_cloud_.width == accumulated_cloud_.points.size());
-      accumulated_cloud_.width = accumulated_cloud_.points.size();
 
-      size_t actual_cnt =
-          std::accumulate(packet_sizes_for_scan_.begin(), packet_sizes_for_scan_.end(), 0);
-      ROS_INFO("Full sweep sz: %lu, expected cnt: %lu, from: %lu PKT",
-               accumulated_cloud_.points.size(), actual_cnt, packet_sizes_for_scan_.size());
       pointcloud_publisher_.publish(accumulated_cloud_);
 
       deskew_info_.header.stamp = scanMsg->header.stamp;
       deskew_info_.header.frame_id = scanMsg->header.frame_id;
       deskew_info_publisher_.publish(deskew_info_);
 
-      std::cout << "az for scan: [";
-      for (float az : azimuth_for_scan_) {
-        std::cout << az << ", ";
-      }
-      std::cout << "]" << std::endl;
-
       // Clear data we are accumulating
       accumulated_cloud_.points.clear();
       accumulated_cloud_.width = 0;
       deskew_info_.sweep_info.clear();
-      packet_sizes_for_scan_.clear();
-      azimuth_for_scan_.clear();
 
       // Add an extra entry for angle 0, for next sweep
       deskew_info_.sweep_info.push_back(create_sweep_entry(prev_stamp_, 0.0));
     }
 
-    azimuth_for_scan_.push_back(azimuth);
-
-    size_t valid_points_for_packet;
-    data_->unpack(scanMsg->packets[i], accumulated_cloud_, &valid_points_for_packet);
-    packet_sizes_for_scan_.push_back(valid_points_for_packet);
+    data_->unpackAndAdd(scanMsg->packets[i], accumulated_cloud_);
 
     deskew_info_.sweep_info.push_back(create_sweep_entry(scanMsg->packets[i].stamp, azimuth));
     prev_azimuth_ = azimuth;
@@ -207,7 +188,7 @@ void Convert::processScanBUGGED(const velodyne_msgs::VelodyneScan::ConstPtr& sca
     }
 
     size_t valid_points_for_packet;
-    data_->unpack(scanMsg->packets[i], *partial_scan_pointcloud, &valid_points_for_packet);
+    data_->unpackAndAdd(scanMsg->packets[i], *partial_scan_pointcloud, &valid_points_for_packet);
     packet_sizes_for_scan_.push_back(valid_points_for_packet);
 
     // Accumulate the pt cloud

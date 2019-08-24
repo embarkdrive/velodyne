@@ -138,7 +138,7 @@ int RawData::setup(ros::NodeHandle private_nh)
  *  @param pkt raw packet to unpack
  *  @param pc shared pointer to point cloud (points are appended)
  */
-float RawData::unpack(const velodyne_msgs::VelodynePacket& pkt, VPointCloud& pc, size_t* valid_pnts) const
+float RawData::unpackAndAdd(const velodyne_msgs::VelodynePacket& pkt, VPointCloud& pc, size_t* valid_pnts) const
 {
   ROS_DEBUG_STREAM("Received packet, time: " << pkt.stamp);
 

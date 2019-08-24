@@ -140,7 +140,7 @@ class RawData
    */
   int setup(ros::NodeHandle private_nh);
 
-  float unpack(const velodyne_msgs::VelodynePacket& pkt, VPointCloud& pc, size_t* valid_pnts=nullptr) const;
+  float unpackAndAdd(const velodyne_msgs::VelodynePacket& pkt, VPointCloud& pc, size_t* valid_pnts=nullptr) const;
 
   void setParameters(double min_range, double max_range, double view_direction, double view_width);
 
