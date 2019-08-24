@@ -28,6 +28,7 @@
 #include <velodyne_msgs/VelodyneDeskewInfo.h>
 #include <velodyne_msgs/VelodyneSweepInfo.h>
 
+
 namespace velodyne_pointcloud {
 class Convert
 {
@@ -41,19 +42,31 @@ class Convert
   void callback(velodyne_pointcloud::CloudNodeConfig& config, uint32_t level);
   velodyne_msgs::VelodyneSweepInfo create_sweep_entry(ros::Time stamp, float angle);
   void processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg);
+  void processScanBUGGED(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg);
 
   /// Pointer to dynamic reconfigure service srv_
   boost::shared_ptr<dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> > srv_;
 
   boost::shared_ptr<velodyne_rawdata::RawData> data_;
   ros::Subscriber velodyne_scan_;
-  ros::Publisher output_pointcloud_, output_deskew_info_;
+  ros::Publisher pointcloud_publisher_;
+  ros::Publisher deskew_info_publisher_;
 
   // make the pointcloud container a member variable to append different slices
   velodyne_rawdata::VPointCloud accumulated_cloud_;
   velodyne_msgs::VelodyneDeskewInfo deskew_info_;
   float prev_azimuth_;
   ros::Time prev_stamp_;
+
+  // Let's check the sum of the packates, should be very unlikely to get the same number twice...
+  std::set<u_int64_t> packet_checksums_;
+  size_t duplicates_ = 0;
+  std::set<std::tuple<float,float,float>> pnts_set_; // expensive -- just bug-hunting!!!
+
+  std::vector<size_t> packet_sizes_for_scan_;
+
+  std::vector<float> azimuth_for_scan_;
+
   /// configuration parameters
   typedef struct
   {

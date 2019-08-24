@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(velodyne_pointcloud)
 
+add_definitions("-std=c++11")
+
 set(${PROJECT_NAME}_CATKIN_DEPS
     angles
     nodelet
