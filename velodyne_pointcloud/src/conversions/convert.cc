@@ -26,10 +26,10 @@ Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh)
 
 
   // advertise output point cloud (before subscribing to input data)
-  output_pointcloud_ = node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
+  pointcloud_publisher_ = node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
 
   // advertise output deskew info
-  output_deskew_info_ =
+  deskew_info_publisher_ =
       node.advertise<velodyne_msgs::VelodyneDeskewInfo>("velodyne_deskew_info", 10);
 
   srv_ = boost::make_shared<dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> >(
@@ -64,8 +64,8 @@ velodyne_msgs::VelodyneSweepInfo Convert::create_sweep_entry(ros::Time stamp, fl
 /** @brief Callback for raw scan messages. */
 void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
 {
-  if (output_pointcloud_.getNumSubscribers() == 0) // no one listening?
-    return;                                        // avoid much work
+  if (pointcloud_publisher_.getNumSubscribers() == 0) // no one listening?
+    return;                                           // avoid much work
 
   // allocate a point cloud with same time and frame ID as raw data
   velodyne_rawdata::VPointCloud::Ptr outMsg(new velodyne_rawdata::VPointCloud());
@@ -93,11 +93,11 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
       accumulated_cloud_.header.frame_id = outMsg->header.frame_id;
       accumulated_cloud_.height = outMsg->height;
       accumulated_cloud_.width = accumulated_cloud_.points.size();
-      output_pointcloud_.publish(accumulated_cloud_);
+      pointcloud_publisher_.publish(accumulated_cloud_);
 
       deskew_info_.header.stamp = scanMsg->header.stamp;
       deskew_info_.header.frame_id = scanMsg->header.frame_id;
-      output_deskew_info_.publish(deskew_info_);
+      deskew_info_publisher_.publish(deskew_info_);
 
       accumulated_cloud_.points.clear();
       accumulated_cloud_.width = 0;
@@ -107,7 +107,7 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
       deskew_info_.sweep_info.push_back(create_sweep_entry(prev_stamp_, 0.0));
     }
 
-    data_->unpack(scanMsg->packets[i], *outMsg);
+    data_->unpackAndAdd(scanMsg->packets[i], *outMsg);
     // Accumulate the pt cloud
     accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), outMsg->points.begin(),
                                      outMsg->points.end());

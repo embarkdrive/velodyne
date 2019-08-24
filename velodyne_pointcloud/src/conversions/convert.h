@@ -47,7 +47,7 @@ class Convert
 
   boost::shared_ptr<velodyne_rawdata::RawData> data_;
   ros::Subscriber velodyne_scan_;
-  ros::Publisher output_pointcloud_, output_deskew_info_;
+  ros::Publisher pointcloud_publisher_, deskew_info_publisher_;
 
   // make the pointcloud container a member variable to append different slices
   velodyne_rawdata::VPointCloud accumulated_cloud_;
