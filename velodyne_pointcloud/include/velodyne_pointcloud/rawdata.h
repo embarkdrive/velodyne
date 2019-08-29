@@ -144,7 +144,13 @@ namespace velodyne_rawdata
      */
     int setup(ros::NodeHandle private_nh);
 
-    float unpack(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+    /**
+     * Unpack pkt points, filter based on configuration, and add OK points to pc.
+     * @param pkt velodyne UDP packet payload (no UDP header)
+     * @param pc output pointcloud that we add data to
+     * @return azimuth value of the last point in pkt if VLP otherwise -1.0
+     */
+    float unpackAndAdd(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc) const;
     
     void setParameters(double min_range, double max_range, double view_direction,
                        double view_width);
@@ -175,10 +181,10 @@ namespace velodyne_rawdata
     float cos_rot_table_[ROTATION_MAX_UNITS];
     
     /** add private function to handle the VLP16 and VLP32 **/
-    float unpack_vlp(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc);
+    float unpack_vlp(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc) const;
 
     /** in-line test whether a point is in range */
-    bool pointInRange(float range)
+    bool pointInRange(float range) const
     {
       return (range >= config_.min_range
               && range <= config_.max_range);

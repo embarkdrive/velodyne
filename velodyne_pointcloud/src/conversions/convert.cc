@@ -24,12 +24,14 @@ Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh)
 {
   data_->setup(private_nh);
 
+  accumulated_cloud_.width = 0;
+  accumulated_cloud_.height = 1;
 
   // advertise output point cloud (before subscribing to input data)
-  output_pointcloud_ = node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
+  pointcloud_publisher_ = node.advertise<sensor_msgs::PointCloud2>("velodyne_points", 10);
 
   // advertise output deskew info
-  output_deskew_info_ =
+  deskew_info_publisher_ =
       node.advertise<velodyne_msgs::VelodyneDeskewInfo>("velodyne_deskew_info", 10);
 
   srv_ = boost::make_shared<dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> >(
@@ -64,21 +66,6 @@ velodyne_msgs::VelodyneSweepInfo Convert::create_sweep_entry(ros::Time stamp, fl
 /** @brief Callback for raw scan messages. */
 void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
 {
-  if (output_pointcloud_.getNumSubscribers() == 0) // no one listening?
-    return;                                        // avoid much work
-
-  // allocate a point cloud with same time and frame ID as raw data
-  velodyne_rawdata::VPointCloud::Ptr outMsg(new velodyne_rawdata::VPointCloud());
-
-  // outMsg's header is a pcl::PCLHeader, convert it before stamp assignment
-  outMsg->header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
-  outMsg->header.frame_id = scanMsg->header.frame_id;
-  outMsg->height = 1;
-
-  // Debug
-  // std::cout << "Processing scan!\n";
-
-  // process each packet provided by the driver
   for (size_t i = 0; i < scanMsg->packets.size(); ++i) {
     const velodyne_rawdata::raw_packet_t* raw =
         (const velodyne_rawdata::raw_packet_t*)&scanMsg->packets[i].data[0];
@@ -87,18 +74,19 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
     float azimuth = float(raw->blocks[0].rotation) / 100.0;
 
     // azimuth value will wrap around after a full 360 degree sweep
-    // once we save all packets for the last full 360 degrees, publish them
     if (azimuth < prev_azimuth_) {
-      accumulated_cloud_.header.stamp = outMsg->header.stamp;
-      accumulated_cloud_.header.frame_id = outMsg->header.frame_id;
-      accumulated_cloud_.height = outMsg->height;
-      accumulated_cloud_.width = accumulated_cloud_.points.size();
-      output_pointcloud_.publish(accumulated_cloud_);
+      // Publish data for the full sweep
+      accumulated_cloud_.header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
+      accumulated_cloud_.header.frame_id = scanMsg->header.frame_id;
+      assert(accumulated_cloud_.width == accumulated_cloud_.points.size());
+
+      pointcloud_publisher_.publish(accumulated_cloud_);
 
       deskew_info_.header.stamp = scanMsg->header.stamp;
       deskew_info_.header.frame_id = scanMsg->header.frame_id;
-      output_deskew_info_.publish(deskew_info_);
+      deskew_info_publisher_.publish(deskew_info_);
 
+      // Clear data we are accumulating
       accumulated_cloud_.points.clear();
       accumulated_cloud_.width = 0;
       deskew_info_.sweep_info.clear();
@@ -107,14 +95,9 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
       deskew_info_.sweep_info.push_back(create_sweep_entry(prev_stamp_, 0.0));
     }
 
-    data_->unpack(scanMsg->packets[i], *outMsg);
-    // Accumulate the pt cloud
-    accumulated_cloud_.points.insert(accumulated_cloud_.points.end(), outMsg->points.begin(),
-                                     outMsg->points.end());
+    data_->unpackAndAdd(scanMsg->packets[i], accumulated_cloud_);
 
-    // Get the sweep info
     deskew_info_.sweep_info.push_back(create_sweep_entry(scanMsg->packets[i].stamp, azimuth));
-
     prev_azimuth_ = azimuth;
     prev_stamp_ = scanMsg->packets[i].stamp;
   }
