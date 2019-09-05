@@ -106,7 +106,8 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
 
   // Look up yaw of velodyne relative to vehicle frame
   std::string frame_id;
-  if (!private_nh.param<std::string>("frame_id", frame_id, "")) {
+  if (!private_nh.getParam("frame_id", frame_id)) {
+    ROS_ERROR("Param frame_id not set!");
     throw std::logic_error("Param frame_id not set");
   }
 
