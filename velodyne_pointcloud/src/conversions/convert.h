@@ -17,24 +17,18 @@
 #ifndef _VELODYNE_POINTCLOUD_CONVERT_H_
 #define _VELODYNE_POINTCLOUD_CONVERT_H_ 1
 
-#include <ros/ros.h>
-
-#include <sensor_msgs/PointCloud2.h>
-#include <velodyne_pointcloud/rawdata.h>
-
 #include <dynamic_reconfigure/server.h>
-#include <velodyne_pointcloud/CloudNodeConfig.h>
-
+#include <ros/ros.h>
+#include <sensor_msgs/PointCloud2.h>
 #include <velodyne_msgs/VelodyneDeskewInfo.h>
 #include <velodyne_msgs/VelodyneSweepInfo.h>
-#include <chrono>
+#include <velodyne_pointcloud/CloudNodeConfig.h>
+#include <velodyne_pointcloud/rawdata.h>
 
 namespace velodyne_pointcloud {
 class Convert
 {
  public:
-  using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
-
   Convert(ros::NodeHandle node, ros::NodeHandle private_nh);
   ~Convert() = default;
 
@@ -72,10 +66,6 @@ class Convert
 
   float visibility_angle_start_;
   float visibility_angle_end_;
-
-  TimePoint start_full_sweep_;
-  TimePoint start_cropped_sweep_;
-  bool last_sample_added_;
 };
 } // namespace velodyne_pointcloud
 

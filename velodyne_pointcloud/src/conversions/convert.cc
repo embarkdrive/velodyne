@@ -38,7 +38,7 @@ double getYawFromMsg(const geometry_msgs::TransformStamped& transform_msg)
 } // namespace
 
 namespace velodyne_pointcloud {
-/** @brief Constructor. */
+
 Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh)
   : data_(new velodyne_rawdata::RawData()), prev_azimuth_(-1.0), prev_stamp_(ros::Time())
 {
@@ -69,9 +69,6 @@ Convert::Convert(ros::NodeHandle node, ros::NodeHandle private_nh)
   srv_->setCallback(f);
 
   synced_with_visibility_ = false;
-
-  last_sample_added_ = false;
-  start_full_sweep_ = start_cropped_sweep_ = std::chrono::steady_clock::now();
 
   // Add an extra entry for angle 0, for initial sweep
   deskew_info_.sweep_info.push_back(create_sweep_entry(prev_stamp_, 0.0));
@@ -107,7 +104,7 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
   // Look up yaw of velodyne relative to vehicle frame
   std::string frame_id;
   if (!private_nh.getParam("frame_id", frame_id)) {
-    ROS_ERROR("Param frame_id not set!");
+    ROS_ERROR("Param frame_id not set, cannot initialize velodyne_pointcloud::Convert");
     throw std::logic_error("Param frame_id not set");
   }
 
@@ -127,12 +124,10 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
   double yaw_sens_veh = -getYawFromMsg(veh_to_sensor);
   // are we the left or right sensor?
   if (-veh_to_sensor.transform.translation.y >= 0) {
-    ROS_INFO("Using left sensor angles");
     // left
     visibility_angle_start_ = visibility_angle_left_front - yaw_sens_veh;
     visibility_angle_end_ = visibility_angle_left_rear - yaw_sens_veh;
   } else {
-    ROS_INFO("Using right sensor angles");
     // right
     visibility_angle_start_ = visibility_angle_right_rear - yaw_sens_veh;
     visibility_angle_end_ = visibility_angle_right_front - yaw_sens_veh;
@@ -141,8 +136,8 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
   visibility_angle_start_ = 180.0 / M_PI * visibility_angle_start_;
   visibility_angle_end_ = 180.0 / M_PI * visibility_angle_end_;
 
-  ROS_INFO("Counter clockwise angles sens frame: %.2f -> %.2f (yaw_sens: %.2f)",
-           visibility_angle_start_, visibility_angle_end_, 180.0 / M_PI * yaw_sens_veh);
+  ROS_DEBUG("Counter clockwise angles sens frame: %.2f -> %.2f (yaw_sens: %.2f)",
+            visibility_angle_start_, visibility_angle_end_, 180.0 / M_PI * yaw_sens_veh);
 
   // Convert angles to azimuth (degrees clockwise from X-axis)
   // TODO, this is really weird (at page 38 in VLP32C manual, 0deg is towards the y-axis, but this
@@ -159,8 +154,8 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
   // Because the sensor spins with INCREASING azimuth, we need to swap start and end angles
   std::swap(visibility_angle_start_, visibility_angle_end_);
 
-  ROS_INFO("Will process points between azimuth %.2f -> %.2f deg.", visibility_angle_start_,
-           visibility_angle_end_);
+  ROS_DEBUG("Will process points between azimuth %.2f -> %.2f deg.", visibility_angle_start_,
+            visibility_angle_end_);
 }
 
 void Convert::callback(velodyne_pointcloud::CloudNodeConfig& config, uint32_t level)
@@ -180,11 +175,6 @@ velodyne_msgs::VelodyneSweepInfo Convert::create_sweep_entry(ros::Time stamp, fl
 
 void Convert::emitFullSweep(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
 {
-  const auto t_end = std::chrono::steady_clock::now();
-  ROS_INFO("Full sweep acquisition in = %.2f ms",
-           std::chrono::duration_cast<std::chrono::nanoseconds>(t_end - start_full_sweep_).count() /
-               1.0e6);
-
   accumulated_cloud_.header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
   accumulated_cloud_.header.frame_id = scanMsg->header.frame_id;
   assert(accumulated_cloud_.width == accumulated_cloud_.points.size());
@@ -206,18 +196,11 @@ void Convert::emitFullSweep(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg
 
 void Convert::emitCroppedSweep(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
 {
-  const auto t_end = std::chrono::steady_clock::now();
-  ROS_INFO(
-      "Cropped sweep acquisition in = %.2f ms",
-      std::chrono::duration_cast<std::chrono::nanoseconds>(t_end - start_cropped_sweep_).count() /
-          1.0e6);
-
   cropped_accumulated_cloud_.header.stamp = pcl_conversions::toPCL(scanMsg->header).stamp;
   cropped_accumulated_cloud_.header.frame_id = scanMsg->header.frame_id;
   assert(cropped_accumulated_cloud_.width == cropped_accumulated_cloud_.points.size());
 
   cropped_pointcloud_publisher_.publish(cropped_accumulated_cloud_);
-  // ROS_DEBUG("Publish cropped pc with %lu points", cropped_accumulated_cloud_.points.size());
 
   cropped_accumulated_cloud_.points.clear();
   cropped_accumulated_cloud_.width = 0;
@@ -233,14 +216,12 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
     // azimuth corresponds to the starting sweep angle for the current packet
     // (0 deg is y-axis of velodyne, increasing CLOCK-WISE)
     float azimuth = float(raw->blocks[0].rotation) / 100.0;
-    // ROS_DEBUG("azimuth = %.2f", azimuth);
 
     // wait until prev_azimuth -> azimuth containts start visibility angle
     if (synced_with_visibility_) {
       // azimuth value will wrap around after a full 360 degree sweep
       if (azimuth < prev_azimuth_) {
         emitFullSweep(scanMsg);
-        start_full_sweep_ = std::chrono::steady_clock::now();
       }
 
       // Seen all the relevant parts of the sweep
@@ -260,12 +241,6 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
             cropped_accumulated_cloud_.points.push_back(accumulated_cloud_.points[j]);
             ++cropped_accumulated_cloud_.width;
           }
-          if (!last_sample_added_) {
-            start_cropped_sweep_ = std::chrono::steady_clock::now();
-          }
-          last_sample_added_ = true;
-        } else {
-          last_sample_added_ = false;
         }
       } else {
         // Sweep doesn't cross 360 deg.
@@ -274,12 +249,6 @@ void Convert::processScan(const velodyne_msgs::VelodyneScan::ConstPtr& scanMsg)
             cropped_accumulated_cloud_.points.push_back(accumulated_cloud_.points[j]);
             ++cropped_accumulated_cloud_.width;
           }
-          if (!last_sample_added_) {
-            start_cropped_sweep_ = std::chrono::steady_clock::now();
-          }
-          last_sample_added_ = true;
-        } else {
-          last_sample_added_ = false;
         }
       }
     } else {
