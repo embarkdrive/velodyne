@@ -88,8 +88,12 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
 
   // Relative to x-axis of vehicle frame, counter clock-wise
   // The "front" angle is the start angle for the left sensor, if it spins counter-cw
+
+  // -62.08 deg = -1.08350 rad Is a bit much
+  // -45 deg = 0.7853982 rad might be better
   float visibility_angle_left_front =
-      node.param("/config/vehicle/vehicle/visiblity_angle_left_front", -1.08350f);
+      node.param("/config/vehicle/vehicle/visiblity_angle_left_front", -0.7853982f);
+  // 360-114.25-62.08 = 183.67 deg = 3.20565f rad
   float visibility_angle_left_rear =
       node.param("/config/vehicle/vehicle/visiblity_angle_left_rear", 3.20565f);
 
@@ -97,7 +101,7 @@ void Convert::setupVisibilityAngles(ros::NodeHandle& node, ros::NodeHandle& priv
   float visibility_angle_right_rear =
       node.param("/config/vehicle/vehicle/visiblity_angle_right_rear", -3.20565f);
   float visibility_angle_right_front =
-      node.param("/config/vehicle/vehicle/visiblity_angle_right_front", 1.08350f);
+      node.param("/config/vehicle/vehicle/visiblity_angle_right_front", 0.7853982f);
 
 
   // Look up yaw of velodyne relative to vehicle frame
