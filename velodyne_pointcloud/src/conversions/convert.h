@@ -28,6 +28,8 @@
 #include <velodyne_msgs/VelodyneDeskewInfo.h>
 #include <velodyne_msgs/VelodyneSweepInfo.h>
 
+#include "diagnostics_utils/instrumentation.h"
+
 namespace velodyne_pointcloud {
 class Convert
 {
@@ -46,14 +48,17 @@ class Convert
   boost::shared_ptr<dynamic_reconfigure::Server<velodyne_pointcloud::CloudNodeConfig> > srv_;
 
   boost::shared_ptr<velodyne_rawdata::RawData> data_;
-  ros::Subscriber velodyne_scan_;
-  ros::Publisher pointcloud_publisher_, deskew_info_publisher_;
+  diagnostics_utils::SubscriberWrapper<velodyne_msgs::VelodyneScan> velodyne_scan_;
+  diagnostics_utils::PublisherWrapper<velodyne_rawdata::VPointCloud> pointcloud_publisher_;
+  diagnostics_utils::PublisherWrapper<velodyne_msgs::VelodyneDeskewInfo> deskew_info_publisher_;
+  diagnostics_utils::TraceFrame trace_frame_ = diagnostics_utils::TraceFrame::INVALID;
 
   // make the pointcloud container a member variable to append different slices
   velodyne_rawdata::VPointCloud accumulated_cloud_;
   velodyne_msgs::VelodyneDeskewInfo deskew_info_;
   float prev_azimuth_;
   ros::Time prev_stamp_;
+  ros::Time start_stamp_;
   /// configuration parameters
   typedef struct
   {

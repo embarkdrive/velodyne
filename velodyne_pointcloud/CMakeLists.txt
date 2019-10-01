@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(velodyne_pointcloud)
 
+add_definitions("-std=c++11")
+
 find_program(CCACHE_FOUND ccache)
 if (CCACHE_FOUND)
 set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
@@ -18,6 +20,7 @@ set(${PROJECT_NAME}_CATKIN_DEPS
     velodyne_driver
     velodyne_msgs
     dynamic_reconfigure
+    diagnostics_utils
 )
 
 find_package(catkin REQUIRED COMPONENTS
