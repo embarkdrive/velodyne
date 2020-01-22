@@ -35,7 +35,7 @@
 namespace velodyne_rawdata
 {
   // Shorthand typedefs for point cloud representations
-  typedef velodyne_pointcloud::PointXYZIR VPoint;
+  typedef velodyne_pointcloud::PointXYZITLaserR VPoint;
   typedef pcl::PointCloud<VPoint> VPointCloud;
 
   /**

@@ -30,6 +30,7 @@
   <build_depend>yaml-cpp</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
   <build_depend>diagnostics_utils</build_depend>
+  <build_depend>utils</build_depend>
 
   <!-- these build dependencies are only needed for unit testing -->
   <build_depend>roslaunch</build_depend>
@@ -50,6 +51,7 @@
   <run_depend>yaml-cpp</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
   <run_depend>diagnostics_utils</run_depend>
+  <run_depend>utils</run_depend>
 
   <export>
     <nodelet plugin="${prefix}/nodelets.xml"/>

@@ -303,6 +303,7 @@ namespace velodyne_rawdata
           intensity = (intensity > max_intensity) ? max_intensity : intensity;
 
           if (pointInRange(distance)) {
+            ros::Time pt_time = pkt.stamp; // No firing correction for this model
 
             // convert polar coordinates to Euclidean XYZ
             VPoint point;
@@ -312,6 +313,9 @@ namespace velodyne_rawdata
             point.z = z_coord;
             point.intensity = intensity;
 
+            point.time_sec = pt_time.sec;
+            point.time_nsec = pt_time.nsec;
+            point.laser_id = point.ring;
             // append this point to the cloud
             pc.points.push_back(point);
             ++pc.width;
@@ -490,21 +494,23 @@ namespace velodyne_rawdata
             intensity = (intensity < min_intensity) ? min_intensity : intensity;
             intensity = (intensity > max_intensity) ? max_intensity : intensity;
 
-            // Set point time as beginning of scan and then apply timing offset:
-            ros::Time pt_time = pkt.stamp;
-            if (!timing_offsets_.empty()) {
-                pt_time = pt_time + ros::Duration(timing_offsets_[block][firing_seq]);
-            }
-
             if (pointInRange(distance)) {
+              // Set point time as beginning of scan and then apply timing offset:
+              ros::Time pt_time = pkt.stamp;
+              if (!timing_offsets_.empty()) {
+                  pt_time = pt_time + ros::Duration(timing_offsets_[block][firing_seq]);
+              }
 
-              // append this point to the cloud
+              // Append this point to the cloud
               VPoint point;
               point.ring = corrections.laser_ring;
               point.x = x_coord;
               point.y = y_coord;
               point.z = z_coord;
               point.intensity = intensity;
+              point.time_sec = pt_time.sec;
+              point.time_nsec = pt_time.nsec;
+              point.laser_id = point.ring;
 
               pc.points.push_back(point);
               ++pc.width;
