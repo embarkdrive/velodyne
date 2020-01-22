@@ -179,6 +179,7 @@ namespace velodyne_rawdata
     bool is_vlp_; // whether or not device model is VLP
     float sin_rot_table_[ROTATION_MAX_UNITS];
     float cos_rot_table_[ROTATION_MAX_UNITS];
+    std::vector<std::vector<double>> timing_offsets_;
     
     /** add private function to handle the VLP16 and VLP32 **/
     float unpack_vlp(const velodyne_msgs::VelodynePacket &pkt, VPointCloud &pc) const;
@@ -189,6 +190,9 @@ namespace velodyne_rawdata
       return (range >= config_.min_range
               && range <= config_.max_range);
     }
+
+   static std::vector<std::vector<double>> getVLP32TimingOffsets();
+
   };
 
 } // namespace velodyne_rawdata

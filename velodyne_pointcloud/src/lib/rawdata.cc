@@ -101,13 +101,17 @@ namespace velodyne_rawdata
       ROS_WARN_STREAM("device_model not specified");
     }
 
+
     if (calibration_.num_lasers == 16) {
       vlp_spec_ = VLP_16_SPEC;
+      timing_offsets_ = {};
       is_vlp_ = true;
     } else if (config_.deviceModel == "VLP32") {
       vlp_spec_ = VLP_32_SPEC;
+      timing_offsets_ = getVLP32TimingOffsets();
       is_vlp_ = true;
     } else {
+      timing_offsets_ = {};
       is_vlp_ = false;
     }
 
@@ -119,6 +123,35 @@ namespace velodyne_rawdata
     }
    return 0;
   }
+
+
+  std::vector<std::vector<double>> RawData::getVLP32TimingOffsets() {
+    // timing table calculation, from velodyne user manual
+
+    // 12 firings cycles in a data package, 32 lasers:
+    std::vector<std::vector<double>> timing_offsets(12, std::vector<double>(32, 0.));
+
+    // Time constants
+    const double full_firing_cycle = VLP_32_SPEC.firing_seq_duration * 1e-6;
+    const double single_firing = VLP_32_SPEC.firing_duration * 1e-6;
+    const bool dual_mode = false;
+
+    double block_idx, pt_idx;
+    for (size_t i = 0; i < timing_offsets.size(); ++i){
+      for (size_t j = 0; j < timing_offsets[i].size(); ++j){
+        if (dual_mode){
+          block_idx = i / 2;
+        }
+        else{
+          block_idx = i;
+        }
+        pt_idx = j / 2;
+        timing_offsets[i][j] = (full_firing_cycle * block_idx) + (single_firing * pt_idx);
+      }
+    }
+    return timing_offsets;
+  }
+
 
   /** @brief convert raw packet to point cloud
    *
@@ -456,6 +489,12 @@ namespace velodyne_rawdata
               (1 - tmp.uint/65535)*(1 - tmp.uint/65535)));
             intensity = (intensity < min_intensity) ? min_intensity : intensity;
             intensity = (intensity > max_intensity) ? max_intensity : intensity;
+
+            // Set point time as beginning of scan and then apply timing offset:
+            ros::Time pt_time = pkt.stamp;
+            if (!timing_offsets_.empty()) {
+                pt_time = pt_time + ros::Duration(timing_offsets_[block][firing_seq]);
+            }
 
             if (pointInRange(distance)) {
 
