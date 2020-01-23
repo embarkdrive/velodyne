@@ -307,7 +307,6 @@ namespace velodyne_rawdata
 
             // convert polar coordinates to Euclidean XYZ
             VPoint point;
-            point.ring = corrections.laser_ring;
             point.x = x_coord;
             point.y = y_coord;
             point.z = z_coord;
@@ -315,7 +314,7 @@ namespace velodyne_rawdata
 
             point.time_sec = pt_time.sec;
             point.time_nsec = pt_time.nsec;
-            point.laser_id = point.ring;
+            point.laser_id = corrections.laser_ring;
             // append this point to the cloud
             pc.points.push_back(point);
             ++pc.width;
@@ -503,14 +502,13 @@ namespace velodyne_rawdata
 
               // Append this point to the cloud
               VPoint point;
-              point.ring = corrections.laser_ring;
               point.x = x_coord;
               point.y = y_coord;
               point.z = z_coord;
               point.intensity = intensity;
               point.time_sec = pt_time.sec;
               point.time_nsec = pt_time.nsec;
-              point.laser_id = point.ring;
+              point.laser_id = corrections.laser_ring;
 
               pc.points.push_back(point);
               ++pc.width;

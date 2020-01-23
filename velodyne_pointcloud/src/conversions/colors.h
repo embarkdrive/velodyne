@@ -21,12 +21,12 @@
 #include <ros/ros.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
-#include <velodyne_pointcloud/point_types.h>
+#include <utils/point_cloud/point_types.h>
 
 namespace velodyne_pointcloud
 {
   // shorter names for point cloud types in this namespace
-  typedef velodyne_pointcloud::PointXYZITLaserR VPoint;
+  typedef PointXYZITLaser VPoint;
   typedef pcl::PointCloud<VPoint> VPointCloud;
 
   class RingColors

@@ -29,13 +29,14 @@
 #include <ros/ros.h>
 #include <pcl_ros/point_cloud.h>
 #include <velodyne_msgs/VelodyneScan.h>
-#include <velodyne_pointcloud/point_types.h>
 #include <velodyne_pointcloud/calibration.h>
+
+#include <utils/point_cloud/point_types.h>
 
 namespace velodyne_rawdata
 {
   // Shorthand typedefs for point cloud representations
-  typedef velodyne_pointcloud::PointXYZITLaserR VPoint;
+  typedef PointXYZITLaser VPoint;
   typedef pcl::PointCloud<VPoint> VPointCloud;
 
   /**
