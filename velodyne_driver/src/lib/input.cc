@@ -114,7 +114,7 @@ namespace velodyne_driver
   /** @brief Get one velodyne packet. */
   int InputSocket::getPacket(velodyne_msgs::VelodynePacket *pkt, const double time_offset)
   {
-    double time1 = ros::Time::now().toSec();
+    const ros::Time time_start = ros::Time::now();
 
     struct pollfd fds[1];
     fds[0].fd = sockfd_;
@@ -199,11 +199,11 @@ namespace velodyne_driver
                          << nbytes << " bytes");
       }
 
-    // Average the times at which we begin and end reading.  Use that to
-    // estimate when the scan occurred. Add the time offset.
-    double time2 = ros::Time::now().toSec();
-    pkt->stamp = ros::Time((time2 + time1) / 2.0 + time_offset);
-
+    // Set the packet stamp to the (ros-system) time when we started receiving the packet.
+    // At this point we also add the configurable time offset which account for network delay.
+    // The individual return's time stamps are adjusted further later to account for the difference
+    // between the packet stamp and their actual time (based on firing speed & points / packet).
+    pkt->stamp = time_start + ros::Duration(time_offset);
     return 0;
   }
 

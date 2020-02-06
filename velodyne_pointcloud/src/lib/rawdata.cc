@@ -101,13 +101,17 @@ namespace velodyne_rawdata
       ROS_WARN_STREAM("device_model not specified");
     }
 
+
     if (calibration_.num_lasers == 16) {
       vlp_spec_ = VLP_16_SPEC;
+      timing_offsets_ = {};
       is_vlp_ = true;
     } else if (config_.deviceModel == "VLP32") {
       vlp_spec_ = VLP_32_SPEC;
+      timing_offsets_ = getVLP32TimingOffsets();
       is_vlp_ = true;
     } else {
+      timing_offsets_ = {};
       is_vlp_ = false;
     }
 
@@ -119,6 +123,36 @@ namespace velodyne_rawdata
     }
    return 0;
   }
+
+
+  std::vector<std::vector<ros::Duration>> RawData::getVLP32TimingOffsets() {
+    // timing table calculation, from velodyne user manual
+
+    // 12 firings cycles in a data package, 32 lasers:
+    using ros::Duration;
+    std::vector<std::vector<ros::Duration>> offsets(12, std::vector<Duration>(32, Duration(0)));
+
+    // Time constants
+    const double full_firing_cycle = VLP_32_SPEC.firing_seq_duration * 1e-6;
+    const double single_firing = VLP_32_SPEC.firing_duration * 1e-6;
+    const bool dual_mode = false;
+
+    double block_idx, pt_idx;
+    for (size_t i = 0; i < offsets.size(); ++i){
+      for (size_t j = 0; j < offsets[i].size(); ++j){
+        if (dual_mode){
+          block_idx = i / 2;
+        }
+        else{
+          block_idx = i;
+        }
+        pt_idx = j / 2;
+        offsets[i][j] = Duration((full_firing_cycle * block_idx) + (single_firing * pt_idx));
+      }
+    }
+    return offsets;
+  }
+
 
   /** @brief convert raw packet to point cloud
    *
@@ -270,15 +304,18 @@ namespace velodyne_rawdata
           intensity = (intensity > max_intensity) ? max_intensity : intensity;
 
           if (pointInRange(distance)) {
+            const ros::Time pt_time = pkt.stamp; // No firing correction for this model
 
             // convert polar coordinates to Euclidean XYZ
             VPoint point;
-            point.ring = corrections.laser_ring;
             point.x = x_coord;
             point.y = y_coord;
             point.z = z_coord;
             point.intensity = intensity;
 
+            point.time_sec = pt_time.sec;
+            point.time_nsec = pt_time.nsec;
+            point.laser_id = corrections.laser_ring;
             // append this point to the cloud
             pc.points.push_back(point);
             ++pc.width;
@@ -458,14 +495,23 @@ namespace velodyne_rawdata
             intensity = (intensity > max_intensity) ? max_intensity : intensity;
 
             if (pointInRange(distance)) {
+              // Set point time as beginning of scan and then apply timing offset:
+              ros::Time pt_time = pkt.stamp;
+              if (!timing_offsets_.empty()) {
+                  // Adjust point time to account for the time it takes between when the scan
+                  // starts and the point actually fired.
+                  pt_time = pt_time + timing_offsets_[block][firing_seq];
+              }
 
-              // append this point to the cloud
+              // Append this point to the cloud
               VPoint point;
-              point.ring = corrections.laser_ring;
               point.x = x_coord;
               point.y = y_coord;
               point.z = z_coord;
               point.intensity = intensity;
+              point.time_sec = pt_time.sec;
+              point.time_nsec = pt_time.nsec;
+              point.laser_id = corrections.laser_ring;
 
               pc.points.push_back(point);
               ++pc.width;
