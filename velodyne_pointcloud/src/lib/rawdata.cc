@@ -125,11 +125,12 @@ namespace velodyne_rawdata
   }
 
 
-  std::vector<std::vector<double>> RawData::getVLP32TimingOffsets() {
+  std::vector<std::vector<ros::Duration>> RawData::getVLP32TimingOffsets() {
     // timing table calculation, from velodyne user manual
 
     // 12 firings cycles in a data package, 32 lasers:
-    std::vector<std::vector<double>> timing_offsets(12, std::vector<double>(32, 0.));
+    using ros::Duration;
+    std::vector<std::vector<ros::Duration>> offsets(12, std::vector<Duration>(32, Duration(0)));
 
     // Time constants
     const double full_firing_cycle = VLP_32_SPEC.firing_seq_duration * 1e-6;
@@ -137,8 +138,8 @@ namespace velodyne_rawdata
     const bool dual_mode = false;
 
     double block_idx, pt_idx;
-    for (size_t i = 0; i < timing_offsets.size(); ++i){
-      for (size_t j = 0; j < timing_offsets[i].size(); ++j){
+    for (size_t i = 0; i < offsets.size(); ++i){
+      for (size_t j = 0; j < offsets[i].size(); ++j){
         if (dual_mode){
           block_idx = i / 2;
         }
@@ -146,10 +147,10 @@ namespace velodyne_rawdata
           block_idx = i;
         }
         pt_idx = j / 2;
-        timing_offsets[i][j] = (full_firing_cycle * block_idx) + (single_firing * pt_idx);
+        offsets[i][j] = Duration((full_firing_cycle * block_idx) + (single_firing * pt_idx));
       }
     }
-    return timing_offsets;
+    return offsets;
   }
 
 
@@ -303,7 +304,7 @@ namespace velodyne_rawdata
           intensity = (intensity > max_intensity) ? max_intensity : intensity;
 
           if (pointInRange(distance)) {
-            ros::Time pt_time = pkt.stamp; // No firing correction for this model
+            const ros::Time pt_time = pkt.stamp; // No firing correction for this model
 
             // convert polar coordinates to Euclidean XYZ
             VPoint point;
@@ -497,7 +498,9 @@ namespace velodyne_rawdata
               // Set point time as beginning of scan and then apply timing offset:
               ros::Time pt_time = pkt.stamp;
               if (!timing_offsets_.empty()) {
-                  pt_time = pt_time + ros::Duration(timing_offsets_[block][firing_seq]);
+                  // Adjust point time to account for the time it takes between when the scan
+                  // starts and the point actually fired.
+                  pt_time = pt_time + timing_offsets_[block][firing_seq];
               }
 
               // Append this point to the cloud
