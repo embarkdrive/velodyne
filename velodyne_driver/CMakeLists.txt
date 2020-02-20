@@ -3,8 +3,7 @@ project(velodyne_driver)
 
 find_program(CCACHE_FOUND ccache)
 if (CCACHE_FOUND)
-set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE /home/embark/scratch/xcache/client/xcache_client)
 endif(CCACHE_FOUND)
 
 set(${PROJECT_NAME}_CATKIN_DEPS 
