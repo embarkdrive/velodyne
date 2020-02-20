@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(velodyne_driver)
 
-find_program(CCACHE_FOUND ccache)
-if (CCACHE_FOUND)
-set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE /home/embark/scratch/xcache/client/xcache_client)
-endif(CCACHE_FOUND)
+find_program(XCACHE_FOUND xcache_client)
+if (XCACHE_FOUND)
+set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE xcache_client)
+endif(XCACHE_FOUND)
 
 set(${PROJECT_NAME}_CATKIN_DEPS 
     diagnostic_updater
