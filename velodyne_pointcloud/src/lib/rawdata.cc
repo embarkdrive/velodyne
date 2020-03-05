@@ -142,12 +142,11 @@ namespace velodyne_rawdata
       for (size_t j = 0; j < offsets[i].size(); ++j){
         if (dual_mode){
           block_idx = i / 2;
-        }
-        else{
+        } else{
           block_idx = i;
         }
         pt_idx = j / 2;
-        offsets[i][j] = Duration((full_firing_cycle * block_idx) + (single_firing * pt_idx));
+        offsets[i][j] = Duration(full_firing_cycle * block_idx + single_firing * pt_idx);
       }
     }
     return offsets;
@@ -367,7 +366,7 @@ namespace velodyne_rawdata
         azimuth_diff = (float)((36000 + raw->blocks[block+1].rotation - raw->blocks[block].rotation)%36000);
         slice_angle += azimuth_diff;
         last_azimuth_diff = azimuth_diff;
-      }else{
+      } else {
         azimuth_diff = last_azimuth_diff;
       }
 

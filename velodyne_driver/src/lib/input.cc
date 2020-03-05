@@ -199,11 +199,14 @@ namespace velodyne_driver
                          << nbytes << " bytes");
       }
 
-    // Set the packet stamp to the (ros-system) time when we started receiving the packet.
+    // Average the times at which we begin and end reading.  Use that to
+    // estimate when the scan occurred.
     // At this point we also add the configurable time offset which account for network delay.
     // The individual return's time stamps are adjusted further later to account for the difference
     // between the packet stamp and their actual time (based on firing speed & points / packet).
-    pkt->stamp = time_start + ros::Duration(time_offset);
+    const ros::Time time_end = ros::Time::now();
+    pkt->stamp = ros::Time((time_start.toSec() + time_end.toSec()) / 2.0 + time_offset);
+
     return 0;
   }
 
