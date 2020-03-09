@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(velodyne_driver)
 
+# set compiler flags
+set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+set(CMAKE_C_FLAGS_RELEASE "-O2")
+add_definitions(-std=c++11)
+
 find_program(CCACHE_FOUND ccache)
 if (CCACHE_FOUND)
 set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
@@ -13,6 +18,7 @@ set(${PROJECT_NAME}_CATKIN_DEPS
     nodelet
     roscpp
     tf
+    utils_ros
     velodyne_msgs)
 
 find_package(catkin REQUIRED COMPONENTS ${${PROJECT_NAME}_CATKIN_DEPS})

@@ -20,6 +20,8 @@
 #include <diagnostic_updater/diagnostic_updater.h>
 #include <diagnostic_updater/publisher.h>
 #include <dynamic_reconfigure/server.h>
+#include <rosgraph_msgs/Clock.h>
+#include <utils/ros/message_filters.h>
 
 #include <velodyne_driver/input.h>
 #include <velodyne_driver/VelodyneNodeConfig.h>
@@ -59,6 +61,8 @@ private:
 
   boost::shared_ptr<Input> input_;
   ros::Publisher output_;
+
+  std::unique_ptr<PollRecentSubscriber<rosgraph_msgs::Clock>> pps_clock_poller_;
 
   /** diagnostics updater */
   diagnostic_updater::Updater diagnostics_;

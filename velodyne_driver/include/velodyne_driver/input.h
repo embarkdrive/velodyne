@@ -39,11 +39,17 @@
 
 #include <ros/ros.h>
 #include <velodyne_msgs/VelodynePacket.h>
+#include <utils/ros/pps_correction.h>
 
 namespace velodyne_driver
 {
   static uint16_t DATA_PORT_NUMBER = 2368;     // default data port
   static uint16_t POSITION_PORT_NUMBER = 8308; // default position port
+
+  constexpr size_t PACKET_TIMESTAMP_INDEX_0 = 1203;
+  constexpr size_t PACKET_TIMESTAMP_INDEX_1 = 1202;
+  constexpr size_t PACKET_TIMESTAMP_INDEX_2 = 1201;
+  constexpr size_t PACKET_TIMESTAMP_INDEX_3 = 1200;
 
   /** @brief Velodyne input base class */
   class Input
@@ -61,7 +67,7 @@ namespace velodyne_driver
      *          > 0 if incomplete packet (is this possible?)
      */
     virtual int getPacket(velodyne_msgs::VelodynePacket *pkt,
-                          const double time_offset) = 0;
+                          const ros::Time& pps_clock) = 0;
 
   protected:
     ros::NodeHandle private_nh_;
@@ -78,7 +84,7 @@ namespace velodyne_driver
     virtual ~InputSocket();
 
     virtual int getPacket(velodyne_msgs::VelodynePacket *pkt, 
-                          const double time_offset);
+                          const ros::Time& pps_clock);
     void setDeviceIP( const std::string& ip );
   private:
 
@@ -106,7 +112,7 @@ namespace velodyne_driver
     virtual ~InputPCAP();
 
     virtual int getPacket(velodyne_msgs::VelodynePacket *pkt, 
-                          const double time_offset);
+                          const ros::Time& pps_clock);
     void setDeviceIP( const std::string& ip );
 
   private:

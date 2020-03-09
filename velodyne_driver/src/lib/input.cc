@@ -38,6 +38,15 @@ namespace velodyne_driver
   static const size_t packet_size =
     sizeof(velodyne_msgs::VelodynePacket().data);
 
+  ros::Time get_packet_timestamp(const boost::array<uint8_t, 1206>& data) {
+
+    const uint32_t sensor_timestamp = (uint32_t(data[PACKET_TIMESTAMP_INDEX_0]) << 24 |
+                                       uint32_t(data[PACKET_TIMESTAMP_INDEX_1]) << 16 |
+                                       uint32_t(data[PACKET_TIMESTAMP_INDEX_2]) << 8 |
+                                       uint32_t(data[PACKET_TIMESTAMP_INDEX_3]));
+    return ros::Time(sensor_timestamp * 1e-6);
+  }
+
   ////////////////////////////////////////////////////////////////////////
   // Input base class implementation
   ////////////////////////////////////////////////////////////////////////
@@ -112,7 +121,7 @@ namespace velodyne_driver
   }
 
   /** @brief Get one velodyne packet. */
-  int InputSocket::getPacket(velodyne_msgs::VelodynePacket *pkt, const double time_offset)
+  int InputSocket::getPacket(velodyne_msgs::VelodynePacket *pkt, const ros::Time& pps_clock)
   {
     const ros::Time time_start = ros::Time::now();
 
@@ -204,8 +213,22 @@ namespace velodyne_driver
     // At this point we also add the configurable time offset which account for network delay.
     // The individual return's time stamps are adjusted further later to account for the difference
     // between the packet stamp and their actual time (based on firing speed & points / packet).
-    const ros::Time time_end = ros::Time::now();
-    pkt->stamp = ros::Time((time_start.toSec() + time_end.toSec()) / 2.0 + time_offset);
+
+    const ros::Time sensor_timestamp = get_packet_timestamp(pkt->data);
+    const ros::Duration sensor_time_since_pulse(std::fmod(sensor_timestamp.toSec(), 1.0));
+    
+    ros::Time pulse_time;
+    ros::Duration transfer_delay;
+    std::tie(pulse_time, transfer_delay) =
+        ros_utils::get_pulse_time(time_start - sensor_time_since_pulse,
+                                  pps_clock,
+                                  ros::Duration(1));
+
+    // TODO: diagnostics
+    ROS_INFO_STREAM_THROTTLE(1, "Delay " << (transfer_delay.toSec() * 1000.0)
+                                         << "ms");
+
+    pkt->stamp = pulse_time + sensor_time_since_pulse;
 
     return 0;
   }
@@ -269,7 +292,7 @@ namespace velodyne_driver
   }
 
   /** @brief Get one velodyne packet. */
-  int InputPCAP::getPacket(velodyne_msgs::VelodynePacket *pkt, const double time_offset)
+  int InputPCAP::getPacket(velodyne_msgs::VelodynePacket *pkt, const ros::Time& pps_clock)
   {
     struct pcap_pkthdr *header;
     const u_char *pkt_data;

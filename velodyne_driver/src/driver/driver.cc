@@ -18,6 +18,9 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
 #include <velodyne_msgs/VelodyneScan.h>
+#include <rosgraph_msgs/Clock.h>
+#include <utils/ros/message_filters.h>
+#include <utils/ros/pps_correction.h>
 
 #include "driver.h"
 
@@ -108,6 +111,8 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
                                                              0.1, 10),
                                         TimeStampStatusParam()));
 
+  pps_clock_poller_.reset(new PollRecentSubscriber<rosgraph_msgs::Clock>(&node, "/pps_clock", 60));
+
   // open Velodyne input device or file
   if (dump_file != "")                  // have PCAP file?
     {
@@ -132,6 +137,12 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
  */
 bool VelodyneDriver::poll(void)
 {
+  const auto pps_clock = pps_clock_poller_->most_recent();
+  if (!pps_clock) {
+    ROS_ERROR_THROTTLE(1, "no pps clock received");
+    return true;
+  }
+
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
   velodyne_msgs::VelodyneScanPtr scan(new velodyne_msgs::VelodyneScan);
   scan->packets.resize(config_.npackets);
@@ -147,7 +158,7 @@ bool VelodyneDriver::poll(void)
 	    return false;
 
           // keep reading until full packet received
-          int rc = input_->getPacket(&scan->packets[i], config_.time_offset);
+          int rc = input_->getPacket(&scan->packets[i], pps_clock->clock);
           if (rc == 0) break;       // got a full packet?
           if (rc < 0) return false; // end of file reached?
         }
