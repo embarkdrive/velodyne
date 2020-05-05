@@ -39,7 +39,7 @@
 
 #include <ros/ros.h>
 #include <velodyne_msgs/VelodynePacket.h>
-#include <utils/ros/pps_correction.h>
+#include <time_sync/pps_correction.h>
 
 namespace velodyne_driver
 {

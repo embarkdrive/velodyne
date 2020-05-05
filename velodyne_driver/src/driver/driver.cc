@@ -20,7 +20,7 @@
 #include <velodyne_msgs/VelodyneScan.h>
 #include <rosgraph_msgs/Clock.h>
 #include <utils/ros/message_filters.h>
-#include <utils/ros/pps_correction.h>
+#include <time_sync/pps_correction.h>
 
 #include "driver.h"
 

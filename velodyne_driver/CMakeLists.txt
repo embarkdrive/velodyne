@@ -19,6 +19,7 @@ set(${PROJECT_NAME}_CATKIN_DEPS
     roscpp
     tf
     utils_ros
+    time_sync
     velodyne_msgs)
 
 find_package(catkin REQUIRED COMPONENTS ${${PROJECT_NAME}_CATKIN_DEPS})

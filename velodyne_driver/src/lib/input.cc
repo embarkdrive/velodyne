@@ -220,9 +220,9 @@ namespace velodyne_driver
     ros::Time pulse_time;
     ros::Duration transfer_delay;
     std::tie(pulse_time, transfer_delay) =
-        ros_utils::get_pulse_time(time_start - sensor_time_since_pulse,
-                                  pps_clock,
-                                  ros::Duration(1));
+        pps_correction::get_pulse_time(time_start - sensor_time_since_pulse,
+                                       pps_clock,
+                                       ros::Duration(1));
 
     // TODO: diagnostics
     ROS_INFO_STREAM_THROTTLE(1, "Delay " << (transfer_delay.toSec() * 1000.0)
