@@ -224,10 +224,6 @@ namespace velodyne_driver
                                        pps_clock,
                                        ros::Duration(1));
 
-    // TODO: diagnostics
-    ROS_INFO_STREAM_THROTTLE(1, "Delay " << (transfer_delay.toSec() * 1000.0)
-                                         << "ms");
-
     pkt->stamp = pulse_time + sensor_time_since_pulse;
 
     return 0;
