@@ -106,7 +106,7 @@ VelodyneDriver::VelodyneDriver(ros::NodeHandle node,
                                         FrequencyStatusParam(&diag_min_freq_,
                                                              &diag_max_freq_,
                                                              0.1, 10),
-                                        TimeStampStatusParam()));
+                                        TimeStampStatusParam(-0.2, 0.2)));
 
   // open Velodyne input device or file
   if (dump_file != "")                  // have PCAP file?
