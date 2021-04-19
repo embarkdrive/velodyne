@@ -43,7 +43,7 @@ standards [REP-0103].
 
 """
 
-from __future__ import print_function
+
 
 import math
 import optparse
@@ -109,7 +109,7 @@ enabled = db.find('DB/enabled_')
 if enabled == None:
     print('no enabled tags found: assuming all 64 enabled')
     num_enabled = 64
-    enabled_lasers = [True for i in xrange(num_enabled)]
+    enabled_lasers = [True for i in range(num_enabled)]
 else:
     index = 0
     for el in enabled:
